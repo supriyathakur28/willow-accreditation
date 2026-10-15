@@ -1,22 +1,12 @@
 package com.supriya.accreditation.command;
 
-import com.supriya.accreditation.support.IntegrationTest;
-import io.micronaut.core.type.Argument;
+import com.supriya.accreditation.support.ApiIntegrationTest;
 import io.micronaut.http.HttpRequest;
-import io.micronaut.http.HttpResponse;
-import io.micronaut.http.MediaType;
-import io.micronaut.http.MutableHttpRequest;
-import io.micronaut.http.client.HttpClient;
-import io.micronaut.http.client.annotation.Client;
-import io.micronaut.http.client.exceptions.HttpClientResponseException;
-import io.micronaut.json.JsonMapper;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
-import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.time.Duration;
@@ -27,29 +17,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** The admin API over HTTP against real MySQL and Redis: status codes, error envelope, side effects. */
 @MicronautTest(transactional = false)
-class AdminApiIntegrationTest extends IntegrationTest {
-
-    static final String USER = "g8NlYJnk7zK9BlB1J2Ebjs0AkhCTpE1V";
-    // The brief's request body, byte for byte
-    static final String BRIEF_POST = """
-            {
-              "user_id": "g8NlYJnk7zK9BlB1J2Ebjs0AkhCTpE1V",
-              "accreditation_type": "BY_INCOME",
-              "document": {
-                "name": "2018.pdf",
-                "mime_type": "application/pdf",
-                "content": "ICAiQC8qIjogWyJzcmMvKiJdCiAgICB9CiAgfQp9Cg=="
-              }
-            }""";
-
-    @Inject @Client("/") HttpClient client;
-    @Inject JsonMapper json;
-
-    record Reply(int status, Map<String, Object> body, HttpResponse<?> raw) {
-        String header(String name) {
-            return raw.getHeaders().get(name);
-        }
-    }
+class AdminApiIntegrationTest extends ApiIntegrationTest {
 
     @BeforeEach
     void cleanState() throws Exception {
@@ -430,44 +398,5 @@ class AdminApiIntegrationTest extends IntegrationTest {
             assertThat(wrongMethod.status()).isEqualTo(405);
             assertThat(wrongMethod.body()).containsEntry("error_code", "METHOD_NOT_ALLOWED");
         }
-    }
-
-    static MutableHttpRequest<String> put(String id, String outcome) {
-        return HttpRequest.PUT("/user/accreditation/" + id, "{\"outcome\": \"" + outcome + "\"}");
-    }
-
-    Reply send(MutableHttpRequest<?> request) {
-        request.contentType(MediaType.APPLICATION_JSON_TYPE);
-        HttpResponse<String> response;
-        try {
-            response = client.toBlocking().exchange(request, Argument.of(String.class), Argument.of(String.class));
-        } catch (HttpClientResponseException e) {
-            response = e.getResponse().getBody(String.class)
-                    .map(body -> (HttpResponse<String>) e.getResponse().toMutableResponse().body(body))
-                    .orElse((HttpResponse<String>) e.getResponse());
-        }
-        String body = response.getBody(String.class).orElse("");
-        return new Reply(response.getStatus().getCode(), body.isBlank() ? Map.of() : parse(body), response);
-    }
-
-    @SuppressWarnings("unchecked")
-    Map<String, Object> parse(String body) {
-        try {
-            return json.readValue(body, Map.class);
-        } catch (IOException e) {
-            throw new IllegalStateException("Not JSON: " + body, e);
-        }
-    }
-
-    static String idOf(Reply reply) {
-        assertThat(reply.status()).as("body %s", reply.body()).isEqualTo(201);
-        return (String) reply.body().get("accreditation_id");
-    }
-
-    @SuppressWarnings("unchecked")
-    static List<String> invalidFields(Reply reply) {
-        return ((List<Map<String, Object>>) reply.body().get("invalid_fields")).stream()
-                .map(f -> f.get("field_name") + ":" + f.get("error"))
-                .toList();
     }
 }

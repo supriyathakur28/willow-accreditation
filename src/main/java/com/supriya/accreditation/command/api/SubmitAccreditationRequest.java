@@ -1,6 +1,7 @@
 package com.supriya.accreditation.command.api;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.supriya.accreditation.platform.web.PathIds;
 import io.micronaut.serde.annotation.Serdeable;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -15,14 +16,12 @@ import jakarta.validation.constraints.Size;
 @Serdeable
 @JsonIgnoreProperties(ignoreUnknown = false)
 public record SubmitAccreditationRequest(
-        @NotBlank @Pattern(regexp = USER_ID, message = "must be 1-64 characters: letters, digits, '_' or '-'")
+        @NotBlank @Pattern(regexp = PathIds.USER_ID_PATTERN, message = "must be 1-64 characters: letters, digits, '_' or '-'")
         String userId,
         @NotNull @Pattern(regexp = "BY_INCOME|BY_NET_WORTH", message = "must be one of BY_INCOME, BY_NET_WORTH")
         String accreditationType,
         @NotNull @Valid
         Document document) {
-
-    public static final String USER_ID = "[A-Za-z0-9_-]{1,64}";
 
     @Serdeable
     @JsonIgnoreProperties(ignoreUnknown = false)

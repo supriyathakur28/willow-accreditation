@@ -92,9 +92,10 @@
         </dependency>
 
         <!-- Messaging and idempotency keys -->
+        <!-- Plain client: the relay and the consumer loop own retries, pausing and offsets explicitly -->
         <dependency>
-            <groupId>io.micronaut.kafka</groupId>
-            <artifactId>micronaut-kafka</artifactId>
+            <groupId>org.apache.kafka</groupId>
+            <artifactId>kafka-clients</artifactId>
         </dependency>
         <dependency>
             <groupId>io.micronaut.redis</groupId>

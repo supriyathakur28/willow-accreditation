@@ -65,6 +65,8 @@ the design itself is in `docs/architecture.html`.
 - Test failure modes deliberately: hold a row lock to see the 503, pause a container to see fail-open.
 - Every bug found gets a test that fails without the fix. After writing a rule's test, break the rule once to see the test fail.
 - Integration tests reset state in `@BeforeEach` and must not depend on order; a test that leaves a hung request or a row behind will break the next one.
+- Background work (relay, consumers) is off in tests by default (`application-test.yml`); only the end-to-end test switches it on, so other tests never race with it.
+- Before a task is done, run the real stack once (`./run.sh`) and replay the main flow with curl: tests do not cover compose wiring, topic creation or seed data.
 - Before committing, run the full suite and check the Maven exit code, not a grep of its output.
 
 ## Framework notes (learned the hard way)
@@ -76,6 +78,10 @@ the design itself is in `docs/architecture.html`.
 - **MySQL Connector/J** reports *matched* rows, not changed rows, so `ON DUPLICATE KEY UPDATE` returns 1 even when nothing changed. Do not branch on that count.
 - **Testcontainers 2** needs `commons-compress` ≥ 1.28 (pinned in `pom.xml`; the Micronaut BOM downgrades it).
 - **Flyway Community** does not run undo (`U…`) scripts; roll back with a new forward migration.
+- **Serde omits empty collections and nulls** by default. Where the contract needs `{}`, `[]` or `null`, annotate the response record with `@JsonInclude(JsonInclude.Include.ALWAYS)`.
+- **Health indicators of optional dependencies** must be off (`redis.health.enabled: false`), or an outage of something the service can run without marks it DOWN and the orchestrator restarts a working app.
+- **Kafka:** the plain `kafka-clients` API is used on purpose. Micronaut Kafka's listener retries have an uncapped exponential backoff and its health check ties the service's health to the broker. The consumer loop is `platform/messaging/RetryingConsumer`.
+- **Testing Kafka:** test consumer logic against the Testcontainers broker, not `MockConsumer`, which drops records once polled and so cannot show a seek-back redelivering.
 
 ## Git
 

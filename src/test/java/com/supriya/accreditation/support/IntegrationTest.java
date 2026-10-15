@@ -1,6 +1,9 @@
 package com.supriya.accreditation.support;
 
 import io.micronaut.test.support.TestPropertyProvider;
+import org.apache.kafka.clients.admin.Admin;
+import org.apache.kafka.clients.admin.AdminClientConfig;
+import org.apache.kafka.clients.admin.NewTopic;
 import org.junit.jupiter.api.TestInstance;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.kafka.KafkaContainer;
@@ -39,6 +42,17 @@ public abstract class IntegrationTest implements TestPropertyProvider {
         MYSQL.start();
         KAFKA.start();
         REDIS.start();
+        // As in compose: the topics exist before the service starts, with their real partition counts
+        createTopic("accreditation.events.v1", 6);
+        createTopic("user.events.v1", 3);
+    }
+
+    protected static void createTopic(String name, int partitions) {
+        try (Admin admin = Admin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA.getBootstrapServers()))) {
+            admin.createTopics(List.of(new NewTopic(name, partitions, (short) 1))).all().get();
+        } catch (Exception e) {
+            throw new IllegalStateException("Could not create topic " + name, e);
+        }
     }
 
     @Override

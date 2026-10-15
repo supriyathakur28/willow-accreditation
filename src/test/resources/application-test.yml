@@ -5,3 +5,10 @@ micronaut:
 endpoints:
   all:
     port: -1
+# Most tests exercise one side only; the end-to-end test switches these on
+outbox:
+  relay:
+    enabled: false
+messaging:
+  consumers:
+    enabled: false

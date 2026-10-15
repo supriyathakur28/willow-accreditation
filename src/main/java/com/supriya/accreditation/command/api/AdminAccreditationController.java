@@ -10,6 +10,7 @@ import com.supriya.accreditation.platform.Sha256;
 import com.supriya.accreditation.platform.idempotency.IdempotencyGuard;
 import com.supriya.accreditation.platform.web.ApiException;
 import com.supriya.accreditation.platform.web.ErrorCodes;
+import com.supriya.accreditation.platform.web.PathIds;
 import com.supriya.accreditation.platform.web.RequestIds;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.http.HttpHeaders;
@@ -40,8 +41,6 @@ public class AdminAccreditationController {
 
     static final String IDEMPOTENCY_KEY = "Idempotency-Key";
     private static final String KEY_FORMAT = "[A-Za-z0-9_-]{1,64}";
-    private static final java.util.regex.Pattern CANONICAL_UUID = java.util.regex.Pattern.compile(
-            "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}");
     private static final java.util.regex.Pattern VERSION_TAG = java.util.regex.Pattern.compile("\"?(\\d{1,18})\"?");
     private static final String ANONYMOUS = "anonymous";
 
@@ -86,7 +85,7 @@ public class AdminAccreditationController {
             @Header(HttpHeaders.IF_MATCH) @Nullable String ifMatch,
             @Header(IDEMPOTENCY_KEY) @Nullable @Pattern(regexp = KEY_FORMAT, message = "must be 1-64 characters: letters, digits, '_' or '-'") String idempotencyKey,
             @Nullable Principal principal) {
-        UUID id = parseId(accreditationId);
+        UUID id = PathIds.accreditationId(accreditationId);
         OptionalLong expectedVersion = parseIfMatch(ifMatch);
         String actor = actor(principal);
         if (idempotencyKey != null) {
@@ -97,7 +96,7 @@ public class AdminAccreditationController {
         return switch (result) {
             case FinaliseResult.Applied applied -> HttpResponse.ok(new AccreditationIdResponse(id))
                     .header(HttpHeaders.ETAG, "\"" + applied.accreditation().version() + "\"");
-            case FinaliseResult.NotFound ignored -> throw notFound(accreditationId);
+            case FinaliseResult.NotFound ignored -> throw PathIds.accreditationNotFound(accreditationId);
             case FinaliseResult.Rejected rejected -> throw switch (rejected.reason()) {
                 case TRANSITION_NOT_ALLOWED -> new ApiException(HttpStatus.CONFLICT, "TRANSITION_NOT_ALLOWED",
                         "Cannot change status from " + rejected.current().status() + " to " + request.outcome(),
@@ -110,15 +109,6 @@ public class AdminAccreditationController {
         };
     }
 
-    // The brief's example ID has an upper-case letter, so IDs are accepted in either case.
-    // A malformed ID cannot exist, so it is a 404 rather than a 400.
-    private static UUID parseId(String accreditationId) {
-        if (!CANONICAL_UUID.matcher(accreditationId).matches()) {
-            throw notFound(accreditationId);
-        }
-        return UUID.fromString(accreditationId);
-    }
-
     private static OptionalLong parseIfMatch(@Nullable String ifMatch) {
         if (ifMatch == null || ifMatch.isBlank() || ifMatch.strip().equals("*")) {
             return OptionalLong.empty();
@@ -129,11 +119,6 @@ public class AdminAccreditationController {
                     "must be the version from the ETag, for example \"2\"");
         }
         return OptionalLong.of(Long.parseLong(matcher.group(1)));
-    }
-
-    private static ApiException notFound(String accreditationId) {
-        return new ApiException(HttpStatus.NOT_FOUND, "ACCREDITATION_NOT_FOUND",
-                "Accreditation " + accreditationId + " not found");
     }
 
     // The audit actor comes only from the authenticated principal, never from the body or a header

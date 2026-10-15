@@ -79,7 +79,21 @@ kafka:
   bootstrap:
     servers: ${KAFKA_BOOTSTRAP_SERVERS:`localhost:29092`}
 
+outbox:
+  relay:
+    enabled: true
+    interval: 500ms
+  cleanup:
+    interval: 1h
+
+messaging:
+  consumers:
+    enabled: true
+
 redis:
   # Redis is an early check only: after 100 ms the request goes ahead on the database guarantees.
   # The timeout must be in the URI; Micronaut ignores redis.timeout when redis.uri is set.
   uri: ${REDIS_URI:`redis://localhost:6379?timeout=100ms`}
+  # Redis is optional, so its outage must not mark the service DOWN (the same goes for Kafka, which has no indicator)
+  health:
+    enabled: false
