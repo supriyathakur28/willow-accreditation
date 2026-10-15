@@ -1,0 +1,81 @@
+micronaut:
+  application:
+    name: accreditation-service
+  server:
+    port: 9999
+    # 5 MB decoded document is ~6.7 MB of base64 inside the JSON body
+    max-request-size: 7MB
+  serde:
+    property-naming-strategy: SNAKE_CASE
+  security:
+    enabled: ${SECURITY_ENABLED:false}
+  router:
+    static-resources:
+      swagger:
+        paths: classpath:META-INF/swagger
+        mapping: /swagger/**
+      swagger-ui:
+        paths: classpath:META-INF/swagger/views/swagger-ui
+        mapping: /swagger-ui/**
+  metrics:
+    enabled: true
+    export:
+      prometheus:
+        enabled: true
+        step: PT1M
+        descriptions: true
+
+# Operational endpoints live on their own port, not on the public 9999
+endpoints:
+  all:
+    port: 9998
+    sensitive: false
+  health:
+    details-visible: ANONYMOUS
+  prometheus:
+    sensitive: false
+
+datasources:
+  # Admin write model: every business check and state change happens here
+  write:
+    url: ${WRITE_DB_URL:`jdbc:mysql://localhost:3306/accreditation_write`}
+    username: ${WRITE_DB_USER:acc_write}
+    password: ${WRITE_DB_PASSWORD:acc_write}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    dialect: MYSQL
+    maximum-pool-size: 10
+    connection-timeout: 2000
+    transaction-isolation: TRANSACTION_READ_COMMITTED
+    data-source-properties:
+      connectionTimeZone: UTC
+      forceConnectionTimeZoneToSession: true
+  # Client read model: built only by the event consumers
+  read:
+    url: ${READ_DB_URL:`jdbc:mysql://localhost:3306/accreditation_read`}
+    username: ${READ_DB_USER:acc_read}
+    password: ${READ_DB_PASSWORD:acc_read}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    dialect: MYSQL
+    maximum-pool-size: 10
+    connection-timeout: 2000
+    transaction-isolation: TRANSACTION_READ_COMMITTED
+    data-source-properties:
+      connectionTimeZone: UTC
+      forceConnectionTimeZoneToSession: true
+
+flyway:
+  datasources:
+    write:
+      enabled: true
+      locations: classpath:db/write
+    read:
+      enabled: true
+      locations: classpath:db/read
+
+kafka:
+  bootstrap:
+    servers: ${KAFKA_BOOTSTRAP_SERVERS:`localhost:29092`}
+
+redis:
+  uri: ${REDIS_URI:`redis://localhost:6379`}
+  timeout: 100ms
