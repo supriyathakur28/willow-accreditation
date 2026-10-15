@@ -331,7 +331,7 @@ static Accreditation evolve(Accreditation state, AccreditationEvent e)</code></p
 </div>
 
 <h3>Technology choices</h3>
-<p>Java 21, Micronaut 4.10 (Data JDBC, Kafka, Security JWT), MySQL 8.4, Kafka 3.9 (KRaft), Redis 7, Flyway, Testcontainers.</p>
+<p>Java 21, Micronaut 4.10 (Data JDBC, Security JWT), the plain Kafka client with a small consumer loop (capped in-place retry, explicit offsets), MySQL 8.4, Kafka 3.9 (KRaft), Redis 7, Flyway, Testcontainers.</p>
 
 <!-- ============================================================ -->
 <h2 id="write-path">4. Write paths, end to end</h2>
