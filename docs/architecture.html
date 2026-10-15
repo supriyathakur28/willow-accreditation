@@ -1,0 +1,1049 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Accreditation Service Design</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --fg: #1b1f24;
+    --muted: #5b6470;
+    --line: #c9cfd6;
+    --panel: #f5f7f9;
+    --box: #ffffff;
+    --store: #eef3f8;
+    --accent: #b4462b;
+    --accent-soft: #fbeee9;
+    --ok: #2f6f4f;
+    --code-bg: #f3f4f6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #14171b; --fg: #e6e9ed; --muted: #9aa4af; --line: #3a424c;
+      --panel: #1b1f24; --box: #1b1f24; --store: #1f2933; --accent: #ef8a6b;
+      --accent-soft: #3a2621; --ok: #7cc49d; --code-bg: #1f242a;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #14171b; --fg: #e6e9ed; --muted: #9aa4af; --line: #3a424c;
+    --panel: #1b1f24; --box: #1b1f24; --store: #1f2933; --accent: #ef8a6b;
+    --accent-soft: #3a2621; --ok: #7cc49d; --code-bg: #1f242a;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  main { max-width: 1120px; margin: 0 auto; padding: 40px 16px 80px; }
+  h1 { font-size: 28px; line-height: 1.2; margin: 0 0 6px; letter-spacing: -0.01em; }
+  h2 { font-size: 20px; margin: 48px 0 10px; padding-top: 12px; border-top: 1px solid var(--line); }
+  h3 { font-size: 16px; margin: 24px 0 8px; }
+  p, li { max-width: 78ch; }
+  .meta { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+  .tldr { background: var(--panel); border-left: 3px solid var(--accent); padding: 14px 18px; margin: 18px 0 8px; }
+  .tldr p { margin: 6px 0; }
+  code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.88em; }
+  code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+  pre { background: var(--code-bg); padding: 12px 14px; border-radius: 6px; overflow-x: auto; font-size: 12.5px; line-height: 1.45; }
+  pre code { background: none; padding: 0; }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; margin: 10px 0 6px; }
+  th, td { text-align: left; vertical-align: top; padding: 7px 10px; border-bottom: 1px solid var(--line); }
+  th { font-weight: 600; background: var(--panel); }
+  .table-wrap { overflow-x: auto; }
+  figure { margin: 18px 0 8px; break-inside: avoid; page-break-inside: avoid; }
+  figure svg { width: 100%; height: auto; display: block; color: var(--fg); }
+  figcaption { color: var(--muted); font-size: 13px; margin-top: 8px; max-width: 95ch; }
+  .toc { columns: 2; font-size: 14px; padding-left: 18px; }
+  .pill { display: inline-block; font-size: 11.5px; padding: 1px 7px; border-radius: 10px; border: 1px solid var(--line); color: var(--muted); }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 760px) { .two-col { grid-template-columns: 1fr; } .toc { columns: 1; } }
+
+  /* SVG vocabulary (styled from the page so diagrams follow the theme) */
+  .bx { fill: var(--box); stroke: currentColor; stroke-width: 1.2; }
+  .st { fill: var(--store); stroke: currentColor; stroke-width: 1.2; }
+  .ext { fill: none; stroke: currentColor; stroke-width: 1.2; stroke-dasharray: 5 4; }
+  .grp { fill: var(--panel); stroke: var(--line); stroke-width: 1; }
+  .hl { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.6; }
+  .e { stroke: currentColor; stroke-width: 1.3; fill: none; }
+  .ea { stroke: currentColor; stroke-width: 1.3; fill: none; stroke-dasharray: 6 4; }
+  .eh { stroke: var(--accent); stroke-width: 2; fill: none; }
+  .life { stroke: var(--line); stroke-width: 1; stroke-dasharray: 3 4; }
+  .t { fill: currentColor; font-size: 13px; font-weight: 600; }
+  .ts { fill: currentColor; font-size: 11px; }
+  .tm { fill: var(--muted); font-size: 11px; }
+  .ta { fill: var(--accent); font-size: 11.5px; font-weight: 600; }
+  .halo { paint-order: stroke; stroke: var(--bg); stroke-width: 4px; stroke-linejoin: round; }
+  .ah { fill: currentColor; }
+  .aha { fill: var(--accent); }
+  .wait { fill: none; stroke: currentColor; stroke-width: 1.2; stroke-dasharray: 3 3; }
+
+  @media print {
+    body { font-size: 11pt; }
+    main { max-width: none; padding: 0; }
+    h2 { break-before: auto; break-after: avoid; }
+    h3 { break-after: avoid; }
+    table, pre, .tldr { break-inside: avoid; }
+    a { color: inherit; text-decoration: none; }
+  }
+  @page { size: A4 landscape; margin: 14mm; }
+</style>
+</head>
+<body>
+<main>
+
+<h1>Accreditation Service: Solution Architecture and System Design</h1>
+<div class="meta">Willow Wealth take-home · Supriya Thakur · Design document, version 3 (reviewed; before implementation)</div>
+
+<div class="tldr">
+  <p><strong>Problem.</strong> Admins record and finalise investors' accreditation evidence; the investor app reads the current status. Every change must be auditable through a message broker, and the client view must be built from those events (brief, requirements 1–9).</p>
+  <p><strong>Shape.</strong> One deployable (a modular monolith) on port 9999, built with CQRS and a transactional outbox. Admin commands change the <em>admin write model</em> in MySQL; the state change and its event are written in one transaction. A relay publishes events to Kafka, and consumers build the <em>client read model</em> that <code>GET</code> serves, plus an append-only audit history.</p>
+  <p><strong>Consistency (Requirement 9b).</strong> Rules are checked against the write model, never the eventually consistent projection. A row lock serialises changes to one accreditation, and a pure <code>decide</code> function judges every transition. A unique index on a generated column guarantees at most one <code>PENDING</code> accreditation per user. All of it holds with any number of instances, because MySQL is the only arbiter.</p>
+  <p><strong>Delivery.</strong> Events are delivered at least once; every consumer is idempotent (version guard, unique <code>event_id</code>). A consumer blocks and retries on infrastructure errors and sends only poison events to a dead-letter topic. API retries are safe: an idempotency key stored on the row makes creation exactly-once, and a Redis check rejects a reused key with a different body. Scheduled jobs run on one instance at a time under a MySQL <code>GET_LOCK</code>.</p>
+  <p><strong>Scale (Requirement 9c).</strong> The read side already has its own logical database, connection pool and consumers. Client traffic is absorbed in measured steps: index and pool tuning, horizontal copies, read replicas, a versioned cache, and only then a split into separately scaled services.</p>
+</div>
+
+<ol class="toc">
+  <li><a href="#scope">Scope, interpretation and delivery tiers</a></li>
+  <li><a href="#nfr">Non-functional requirements</a></li>
+  <li><a href="#containers">Container view, modules and technology</a></li>
+  <li><a href="#write-path">Write paths, end to end</a></li>
+  <li><a href="#lifecycle">Accreditation lifecycle</a></li>
+  <li><a href="#concurrency">Concurrency and invariants (Requirement 9b)</a></li>
+  <li><a href="#api">API surface and error model</a></li>
+  <li><a href="#idempotency">Idempotency and delivery semantics</a></li>
+  <li><a href="#data">Data model and identifiers</a></li>
+  <li><a href="#events">Event contract and topics</a></li>
+  <li><a href="#jobs">Background jobs and threading</a></li>
+  <li><a href="#security">Security and compliance</a></li>
+  <li><a href="#failures">Failure modes</a></li>
+  <li><a href="#scaling">Scaling the client path (Requirement 9c)</a></li>
+  <li><a href="#tests">Test strategy</a></li>
+  <li><a href="#run">Run and verify</a></li>
+  <li><a href="#decisions">Decisions and rejected alternatives</a></li>
+  <li><a href="#assumptions">Assumptions and scope</a></li>
+</ol>
+
+<!-- ============================================================ -->
+<h2 id="scope">1. Scope, interpretation and delivery tiers</h2>
+<div class="table-wrap">
+<table>
+  <tr><th>#</th><th>Brief requirement</th><th>Where it is met</th><th>How it is verified</th></tr>
+  <tr><td>API</td><td><code>POST /user/accreditation</code>, <code>PUT /user/accreditation/{id}</code>, <code>GET /user/{userId}/accreditation</code></td><td>Admin and client controllers. Request and response shapes match the brief exactly (snake_case); <code>GET</code> returns all of the user's accreditations.</td><td>Contract tests that pin the brief's JSON</td></tr>
+  <tr><td>1</td><td>Validate request bodies</td><td>Bean Validation, strict enum parsing, base64 and size checks before decoding, rejection of unknown fields; a 400 that lists every invalid field</td><td>Parameterised 400 tests</td></tr>
+  <tr><td>2</td><td>Audit history through a messaging system: each event captures the state change and a timestamp</td><td>Named events (<code>AccreditationSubmitted</code>, <code>…Confirmed</code>, <code>…Failed</code>, <code>…Expired</code>) on <code>accreditation.events.v1</code>, kept forever; a consumer appends each to <code>accreditation_status_history</code>, exposed by a history endpoint</td><td>History endpoint test; duplicate-delivery test</td></tr>
+  <tr><td>3</td><td>A process consumes the events and stores current state in a relational DB, which serves the client endpoint</td><td>Projection consumer writes <code>accreditation_views</code> in the client read model; <code>GET</code> reads only from it</td><td>End-to-end test with Awaitility</td></tr>
+  <tr><td>4a–c</td><td>FAILED is final; CONFIRMED can be EXPIRED; no new request while one is PENDING</td><td>Pure <code>decide</code> under a row lock (4a, 4b); unique index on the generated column <code>user_id_if_pending</code> (4c)</td><td>Exhaustive transition-table unit tests; concurrency integration tests</td></tr>
+  <tr><td>5</td><td>Expire CONFIRMED accreditations whose last update is older than 30 days</td><td>Expiry job, hourly, single runner; each expiry goes through the same command path as <code>PUT</code>, under the row lock</td><td>Job tests with an injected clock, including a race with an admin update</td></tr>
+  <tr><td>6–7</td><td>Java; containerised broker and DB with their configuration</td><td><code>docker-compose.yml</code> (MySQL, Kafka, Redis, topic and seed init, app), multi-stage <code>Dockerfile</code></td><td><code>run.sh</code> + <code>smoke.sh</code></td></tr>
+  <tr><td>8</td><td>Public repo, Linux run script, port 9999</td><td><code>run.sh</code>, <code>README.md</code>, <code>requests.http</code></td><td>Smoke script replays the brief's requests</td></tr>
+  <tr><td>9</td><td>README answers 9a–c and an AI statement</td><td>This document, condensed into the README</td><td>Review</td></tr>
+</table>
+</div>
+
+<div class="tldr">
+  <p><strong>Interpretation of requirement 4 and 9b.</strong> The brief says the admin endpoints should "leverage the database containing the entity's current state". Read literally, that is the event-built store from requirement 3. Checks against a store that is updated <em>after</em> the request returns cannot be made consistent without making the write wait for the projection. So this design keeps two current-state tables: a <strong>write model</strong>, updated in the same transaction that records the event and used for every check, and the <strong>event-built read model</strong> required by requirement 3, used only by the client endpoint. If the literal reading were mandated, the guarantees in section 6 (the answer to 9b) would still need the synchronous table; the projection could then be fed from it rather than replace it.</p>
+</div>
+
+<h3>Delivery tiers</h3>
+<div class="table-wrap">
+<table>
+  <tr><th>Tier</th><th>Items</th></tr>
+  <tr><td><strong>Built: core</strong></td><td>The three endpoints and validation; write model, row lock, generated-column index; outbox and relay; projection and history consumers with blocking retry and dead-letter topics; expiry job (CONFIRMED &gt; 30 days); MySQL job lock; error model and request ID; idempotency key (Redis check, database unique key); users replica with seed data; unit, integration and contract tests; <code>run.sh</code>, <code>smoke.sh</code></td></tr>
+  <tr><td><strong>Built: extras</strong></td><td>JWT security with admin and user tokens (off by default); history endpoint; optional <code>If-Match</code> on <code>PUT</code></td></tr>
+  <tr><td><strong>Designed, not built</strong></td><td>Rate limiting (at the gateway); keyset pagination; response cache; read replicas and the service split; tiered retry topics; Schema Registry; CDC relay; object storage and encryption for documents; GDPR crypto-shredding</td></tr>
+</table>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="nfr">2. Non-functional requirements</h2>
+<p>The brief gives no numbers, so these are stated assumptions; they size the design and give section 14 something to measure against.</p>
+<div class="two-col">
+<table>
+  <tr><th>Assumption</th><th>Value</th></tr>
+  <tr><td>Registered users (investors)</td><td>500k, matching Willow's public member count; 5 % active on a peak day</td></tr>
+  <tr><td>Client <code>GET</code>, peak today</td><td>50 req/s; 500 req/s after a 10× increase</td></tr>
+  <tr><td>Admin writes</td><td>~2k per day; peak 5 per second</td></tr>
+  <tr><td>Accreditations per user</td><td>1–10; response body &lt; 2 KB</td></tr>
+  <tr><td>Documents</td><td>typically 1 MB, at most 5 MB decoded</td></tr>
+</table>
+<table>
+  <tr><th>Objective</th><th>Target</th></tr>
+  <tr><td>Client <code>GET</code> latency</td><td>p99 ≤ 150 ms at 10× load</td></tr>
+  <tr><td>Client <code>GET</code> availability</td><td>99.9 % per month</td></tr>
+  <tr><td>Admin write latency (excluding upload transfer)</td><td>p99 ≤ 500 ms</td></tr>
+  <tr><td>Read-model freshness (event time → projection applied)</td><td>p99 ≤ 5 s; alert at 30 s</td></tr>
+  <tr><td>Expiry applied after its threshold</td><td>within 1 hour (job cadence)</td></tr>
+</table>
+</div>
+<p><strong>What the numbers imply.</strong> 500 GET/s is 500 single-range index reads per second, well within one MySQL instance; the first limits at 10× are connections and per-request overhead, not the query (section 14). Admin and expiry traffic produce at most a few events per second, so the relay (which drains continuously, section 11) is not a bottleneck.</p>
+
+<!-- ============================================================ -->
+<h2 id="containers">3. Container view, modules and technology</h2>
+<figure>
+<svg viewBox="0 0 1250 520" role="img" aria-label="Container view: the admin write path runs along the top row from the Admin API through the command service into the MySQL admin write model and out through the outbox relay to Kafka; the client read path runs along the bottom row from Kafka through consumers into the MySQL client read model, which the query service reads. Redis holds idempotency keys for the admin API only.">
+  <defs>
+    <marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah"/></marker>
+    <marker id="a1h" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="aha"/></marker>
+  </defs>
+
+  <text x="200" y="40" class="tm">WRITE PATH (admin, synchronous)</text>
+  <text x="200" y="490" class="tm">READ PATH (client, served from the projection)</text>
+
+  <rect x="20" y="60" width="110" height="64" rx="6" class="ext"/>
+  <text x="75" y="88" text-anchor="middle" class="t">Admin</text>
+  <text x="75" y="105" text-anchor="middle" class="ts">back office</text>
+
+  <rect x="200" y="60" width="150" height="64" rx="6" class="bx"/>
+  <text x="275" y="88" text-anchor="middle" class="t">Admin API</text>
+  <text x="275" y="105" text-anchor="middle" class="ts">validate · idempotency</text>
+
+  <rect x="420" y="60" width="150" height="64" rx="6" class="bx"/>
+  <text x="495" y="88" text-anchor="middle" class="t">Command service</text>
+  <text x="495" y="105" text-anchor="middle" class="ts">decide() · state machine</text>
+
+  <rect x="640" y="60" width="160" height="64" rx="6" class="hl"/>
+  <text x="720" y="84" text-anchor="middle" class="t">MySQL</text>
+  <text x="720" y="100" text-anchor="middle" class="t">admin write model</text>
+  <text x="720" y="116" text-anchor="middle" class="tm">accreditation_write</text>
+
+  <rect x="870" y="60" width="150" height="64" rx="6" class="bx"/>
+  <text x="945" y="88" text-anchor="middle" class="t">Outbox relay</text>
+  <text x="945" y="105" text-anchor="middle" class="ts">drains · GET_LOCK</text>
+
+  <rect x="1090" y="60" width="140" height="404" rx="6" class="st"/>
+  <text x="1160" y="88" text-anchor="middle" class="t">Kafka</text>
+  <text x="1160" y="122" text-anchor="middle" class="ts">accreditation.events.v1</text>
+  <text x="1160" y="138" text-anchor="middle" class="tm">key accreditation_id</text>
+  <text x="1160" y="154" text-anchor="middle" class="tm">retention forever</text>
+  <text x="1160" y="188" text-anchor="middle" class="ts">+ one .dlt per</text>
+  <text x="1160" y="204" text-anchor="middle" class="ts">consumer group</text>
+  <text x="1160" y="330" text-anchor="middle" class="ts">user.events.v1</text>
+  <text x="1160" y="346" text-anchor="middle" class="tm">key user_id</text>
+  <text x="1160" y="362" text-anchor="middle" class="tm">compacted</text>
+
+  <rect x="200" y="230" width="150" height="64" rx="6" class="st"/>
+  <text x="275" y="258" text-anchor="middle" class="t">Redis</text>
+  <text x="275" y="275" text-anchor="middle" class="ts">idempotency keys</text>
+
+  <rect x="420" y="230" width="150" height="64" rx="6" class="bx"/>
+  <text x="495" y="258" text-anchor="middle" class="t">Expiry job</text>
+  <text x="495" y="275" text-anchor="middle" class="ts">hourly · GET_LOCK</text>
+
+  <rect x="870" y="230" width="150" height="64" rx="6" class="ext"/>
+  <text x="945" y="258" text-anchor="middle" class="t">Users service</text>
+  <text x="945" y="275" text-anchor="middle" class="ts">external · seeded in dev</text>
+
+  <rect x="20" y="400" width="110" height="64" rx="6" class="ext"/>
+  <text x="75" y="428" text-anchor="middle" class="t">Client</text>
+  <text x="75" y="445" text-anchor="middle" class="ts">investor web app</text>
+
+  <rect x="200" y="400" width="150" height="64" rx="6" class="bx"/>
+  <text x="275" y="428" text-anchor="middle" class="t">Client API</text>
+  <text x="275" y="445" text-anchor="middle" class="ts">GET · all statuses</text>
+
+  <rect x="420" y="400" width="150" height="64" rx="6" class="bx"/>
+  <text x="495" y="428" text-anchor="middle" class="t">Query service</text>
+  <text x="495" y="445" text-anchor="middle" class="ts">read-only</text>
+
+  <rect x="640" y="400" width="160" height="64" rx="6" class="st"/>
+  <text x="720" y="424" text-anchor="middle" class="t">MySQL</text>
+  <text x="720" y="440" text-anchor="middle" class="t">client read model</text>
+  <text x="720" y="456" text-anchor="middle" class="tm">accreditation_read</text>
+
+  <rect x="870" y="400" width="150" height="64" rx="6" class="bx"/>
+  <text x="945" y="428" text-anchor="middle" class="t">Consumers</text>
+  <text x="945" y="445" text-anchor="middle" class="ts">blocking retry · DLT</text>
+
+  <line x1="130" y1="92" x2="198" y2="92" class="e" marker-end="url(#a1)"/>
+  <text x="165" y="84" text-anchor="middle" class="ts">POST · PUT</text>
+  <line x1="350" y1="92" x2="418" y2="92" class="e" marker-end="url(#a1)"/>
+  <text x="385" y="84" text-anchor="middle" class="ts">command</text>
+  <line x1="570" y1="92" x2="638" y2="92" class="eh" marker-end="url(#a1h)"/>
+  <text x="605" y="84" text-anchor="middle" class="ta">1 tx</text>
+  <line x1="800" y1="92" x2="868" y2="92" class="ea" marker-end="url(#a1)"/>
+  <text x="835" y="84" text-anchor="middle" class="ts">poll unsent</text>
+  <line x1="1020" y1="92" x2="1088" y2="92" class="ea" marker-end="url(#a1)"/>
+  <text x="1055" y="84" text-anchor="middle" class="ts">publish</text>
+
+  <line x1="275" y1="124" x2="275" y2="228" class="e" marker-end="url(#a1)"/>
+  <text x="283" y="178" class="ts">key + body hash</text>
+  <line x1="495" y1="230" x2="495" y2="126" class="e" marker-end="url(#a1)"/>
+  <text x="503" y="175" class="ts">expire(id)</text>
+  <line x1="1020" y1="262" x2="1088" y2="262" class="ea" marker-end="url(#a1)"/>
+  <text x="1055" y="254" text-anchor="middle" class="ts">publish</text>
+
+  <line x1="130" y1="432" x2="198" y2="432" class="e" marker-end="url(#a1)"/>
+  <text x="165" y="424" text-anchor="middle" class="ts">GET</text>
+  <line x1="350" y1="432" x2="418" y2="432" class="e" marker-end="url(#a1)"/>
+  <text x="385" y="424" text-anchor="middle" class="ts">query</text>
+  <line x1="570" y1="432" x2="638" y2="432" class="e" marker-end="url(#a1)"/>
+  <text x="605" y="424" text-anchor="middle" class="ts">SELECT</text>
+  <line x1="870" y1="432" x2="802" y2="432" class="ea" marker-end="url(#a1)"/>
+  <text x="835" y="418" text-anchor="middle" class="ts">upsert if</text>
+  <text x="835" y="452" text-anchor="middle" class="ts">newer</text>
+  <line x1="1090" y1="432" x2="1022" y2="432" class="ea" marker-end="url(#a1)"/>
+  <text x="1055" y="424" text-anchor="middle" class="ts">consume</text>
+
+  <polyline points="900,400 900,340 760,340 760,126" class="ea" marker-end="url(#a1)"/>
+  <text x="752" y="205" text-anchor="end" class="ts">known_users</text>
+  <text x="752" y="219" text-anchor="end" class="ts">(write-side copy)</text>
+
+  <line x1="640" y1="505" x2="680" y2="505" class="e"/>
+  <text x="688" y="509" class="ts">synchronous, on the request path</text>
+  <line x1="900" y1="505" x2="940" y2="505" class="ea"/>
+  <text x="948" y="509" class="ts">asynchronous, after commit</text>
+</svg>
+<figcaption><strong>Figure 1.</strong> One deployable on port 9999 with two paths. The admin path (top) is synchronous up to one MySQL transaction, highlighted, that changes the state <em>and</em> records the event. Everything after the commit (dashed) is asynchronous: the relay publishes to Kafka, and consumers build the client read model that the client path (bottom) serves. Kafka is never on the admin request path, and Redis is never on the client path or under the jobs. Users are owned by another service; both models keep a local copy fed by <code>user.events.v1</code>, which compose seeds with sample users.</figcaption>
+</figure>
+
+<h3>One MySQL server, two logical databases</h3>
+<p>The service runs against one MySQL server holding two logical databases (schemas): <code>accreditation_write</code>, the admin write model, and <code>accreditation_read</code>, the client read model. Each has its own datasource, connection pool, database user and Flyway folder. The query module's user has no grant on the write schema, so the boundary is enforced, not conventional; separate pools mean a surge of client reads cannot take the connections admin writes need; and moving the read model to its own server (section 14) changes one JDBC URL. There is no transaction spanning both, by design: the only path between them is the event stream.</p>
+
+<h3>Modules inside the deployable</h3>
+<div class="table-wrap">
+<table>
+  <tr><th>Package</th><th>Responsibility</th><th>May depend on</th></tr>
+  <tr><td><code>domain</code></td><td>The functional core: immutable records, sealed types and pure functions. No framework imports, no I/O.</td><td>nothing</td></tr>
+  <tr><td><code>command</code></td><td>Admin API, command service (the shell around <code>decide</code>), write repositories, outbox writer and relay, expiry job</td><td>domain, platform</td></tr>
+  <tr><td><code>query</code></td><td>Client API, history API, projection and history consumers, read repositories</td><td>domain (event types only), platform</td></tr>
+  <tr><td><code>users</code></td><td>Consumers of <code>user.events.v1</code> that maintain the <code>known_users</code> copies</td><td>platform</td></tr>
+  <tr><td><code>platform</code></td><td>Error model, request-ID filter, idempotency, job lock, security, clock, UUIDv7 generator</td><td>nothing in the business modules</td></tr>
+</table>
+</div>
+<p><code>command</code> and <code>query</code> never call each other; Kafka is their only link. An ArchUnit test enforces these rules.</p>
+
+<h3>Functional core, imperative shell</h3>
+<div class="two-col">
+<pre><code>sealed interface Decision permits Accepted, NoOp, Rejected {}
+record Accepted(AccreditationEvent event) implements Decision {}
+record NoOp(Accreditation current)       implements Decision {}
+record Rejected(RejectionReason reason)  implements Decision {}
+
+// pure: same inputs, same output; no clock, no DB, no exceptions
+static Decision decide(Accreditation state, Command cmd, Instant now)
+static Accreditation evolve(Accreditation state, AccreditationEvent e)</code></pre>
+<div>
+<p><code>decide</code> holds the transition rules for 4a, 4b and the expiry rules; <code>evolve</code> applies an accepted event to the write-side state. Business outcomes are values, matched with an exhaustive <code>switch</code> over sealed types, not thrown exceptions. The command service is the thin shell: it loads and locks, calls <code>decide</code>, persists, and maps the decision to a status code. Rule 4c is deliberately <em>not</em> in <code>decide</code>: it spans rows, and the database enforces it (section 6).</p>
+<p>The projection does not call <code>evolve</code>. Each event carries a full snapshot of the accreditation, and the projection applies it if its version is newer, so it tolerates gaps and duplicates. Plain Java 21 only (records, sealed interfaces, pattern matching); no functional library.</p>
+</div>
+</div>
+
+<h3>Technology choices</h3>
+<p>Java 21, Micronaut 4.10 (Data JDBC, Kafka, Security JWT), MySQL 8.4, Kafka 3.9 (KRaft), Redis 7, Flyway, Testcontainers.</p>
+
+<!-- ============================================================ -->
+<h2 id="write-path">4. Write paths, end to end</h2>
+<h3>4.1 Submit: <code>POST /user/accreditation</code></h3>
+<figure>
+<svg viewBox="0 0 960 570" role="img" aria-label="Sequence for POST: the API validates the body and records the idempotency key in Redis; in one transaction the command service checks the user is known and inserts the accreditation, document and outbox event; on success it commits and returns 201; on a duplicate key it rolls back, looks the idempotency key up in a new transaction, and returns either the original 201 or 409.">
+  <defs>
+    <marker id="a6" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah"/></marker>
+  </defs>
+  <g>
+    <rect x="20" y="16" width="120" height="34" rx="5" class="ext"/><text x="80" y="38" text-anchor="middle" class="t">Admin</text>
+    <rect x="200" y="16" width="120" height="34" rx="5" class="bx"/><text x="260" y="38" text-anchor="middle" class="t">Admin API</text>
+    <rect x="380" y="16" width="120" height="34" rx="5" class="st"/><text x="440" y="38" text-anchor="middle" class="t">Redis</text>
+    <rect x="560" y="16" width="120" height="34" rx="5" class="bx"/><text x="620" y="38" text-anchor="middle" class="t">Command</text>
+    <rect x="740" y="16" width="120" height="34" rx="5" class="st"/><text x="800" y="38" text-anchor="middle" class="t">Write model</text>
+  </g>
+  <line x1="80" y1="50" x2="80" y2="555" class="life"/>
+  <line x1="260" y1="50" x2="260" y2="555" class="life"/>
+  <line x1="440" y1="50" x2="440" y2="555" class="life"/>
+  <line x1="620" y1="50" x2="620" y2="555" class="life"/>
+  <line x1="800" y1="50" x2="800" y2="555" class="life"/>
+
+  <rect x="596" y="210" width="350" height="196" rx="4" class="hl" opacity="0.9"/>
+  <text x="938" y="226" text-anchor="end" class="ta">single DB transaction</text>
+
+  <line x1="80" y1="86" x2="258" y2="86" class="e" marker-end="url(#a6)"/>
+  <text x="86" y="79" class="ts halo">POST · Idempotency-Key · JSON body</text>
+
+  <path d="M260,104 h40 v18 h-38" class="e" marker-end="url(#a6)"/>
+  <text x="306" y="117" class="ts halo">size cap · shape · enum · base64 → else 400</text>
+
+  <line x1="260" y1="156" x2="438" y2="156" class="e" marker-end="url(#a6)"/>
+  <text x="266" y="149" class="ts halo">SET key = body hash, NX EX 24h</text>
+
+  <line x1="260" y1="192" x2="618" y2="192" class="e" marker-end="url(#a6)"/>
+  <text x="266" y="185" class="ts halo">submit(userId, type, document, key, actor)</text>
+
+  <line x1="620" y1="248" x2="798" y2="248" class="e" marker-end="url(#a6)"/>
+  <text x="626" y="241" class="ts halo">known user? → else 422</text>
+
+  <line x1="620" y1="284" x2="798" y2="284" class="e" marker-end="url(#a6)"/>
+  <text x="626" y="277" class="ts halo">INSERT accreditation (PENDING, v1)</text>
+  <text x="626" y="298" class="tm halo">+ document + outbox(Submitted)</text>
+
+  <rect x="606" y="310" width="330" height="88" rx="2" fill="none" stroke="currentColor" stroke-width="1"/>
+  <rect x="606" y="310" width="34" height="16" fill="currentColor"/>
+  <text x="623" y="322" text-anchor="middle" style="fill: var(--bg); font-size: 10px; font-weight: 700;">alt</text>
+  <text x="648" y="322" class="tm">[ok]</text>
+  <line x1="620" y1="342" x2="798" y2="342" class="e" marker-end="url(#a6)"/>
+  <text x="626" y="336" class="ts halo">COMMIT</text>
+  <line x1="606" y1="352" x2="936" y2="352" stroke="currentColor" stroke-width="1" stroke-dasharray="4 3"/>
+  <text x="648" y="366" class="tm">[duplicate key, error 1062]</text>
+  <line x1="800" y1="386" x2="622" y2="386" class="e" marker-end="url(#a6)"/>
+  <text x="806" y="390" class="ta halo">ROLLBACK</text>
+
+  <line x1="620" y1="436" x2="798" y2="436" class="e" marker-end="url(#a6)"/>
+  <text x="626" y="429" class="ts halo">new tx: find by (created_by, key)</text>
+  <text x="626" y="452" class="tm halo">found → original id · else → Rejected</text>
+
+  <line x1="260" y1="492" x2="82" y2="492" class="e" marker-end="url(#a6)"/>
+  <text x="90" y="485" class="ts halo">201 {accreditation_id}</text>
+  <text x="90" y="508" class="ta halo">| 409 PENDING_ACCREDITATION_EXISTS</text>
+
+  <text x="480" y="546" text-anchor="middle" class="tm halo">after COMMIT, the outbox row is published exactly as in Figure 3 (relay → Kafka → consumers)</text>
+</svg>
+<figcaption><strong>Figure 2.</strong> <code>POST</code>. The body size and base64 length are checked before decoding, so oversized input fails before any I/O. The known-user check (<code>SELECT … FOR SHARE</code>, which holds the user row until commit), the insert and the outbox event share one transaction. Rule 4c is not checked in code first: the unique index on <code>user_id_if_pending</code> decides it atomically. Redis rejects a reused key with a different body (422); the database is the authority for duplicates. A retry can collide on two unique indexes at once (the idempotency key and the pending user), and MySQL reports only one, so every duplicate-key error is resolved the same way: roll back, then look up the idempotency key in a fresh transaction. A match returns the original <code>accreditation_id</code> with 201; no match is a genuine second PENDING and returns 409.</figcaption>
+</figure>
+
+<h3>4.2 Finalise: <code>PUT /user/accreditation/{id}</code>, and what happens after commit</h3>
+<figure>
+<svg viewBox="0 0 1160 620" role="img" aria-label="Sequence for PUT: the API checks the idempotency key in Redis, the command service locks the row, the pure decide function approves the transition, the row is updated and the outbox event inserted in one transaction, the API returns 200; asynchronously the relay publishes to Kafka and consumers upsert the projection and append history before committing offsets.">
+  <defs>
+    <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah"/></marker>
+  </defs>
+  <g>
+    <rect x="10" y="16" width="100" height="34" rx="5" class="ext"/><text x="60" y="38" text-anchor="middle" class="t">Admin</text>
+    <rect x="140" y="16" width="100" height="34" rx="5" class="bx"/><text x="190" y="38" text-anchor="middle" class="t">Admin API</text>
+    <rect x="270" y="16" width="100" height="34" rx="5" class="st"/><text x="320" y="38" text-anchor="middle" class="t">Redis</text>
+    <rect x="400" y="16" width="100" height="34" rx="5" class="bx"/><text x="450" y="38" text-anchor="middle" class="t">Command</text>
+    <rect x="530" y="16" width="100" height="34" rx="5" class="st"/><text x="580" y="38" text-anchor="middle" class="t">Write model</text>
+    <rect x="660" y="16" width="100" height="34" rx="5" class="bx"/><text x="710" y="38" text-anchor="middle" class="t">Relay</text>
+    <rect x="790" y="16" width="100" height="34" rx="5" class="st"/><text x="840" y="38" text-anchor="middle" class="t">Kafka</text>
+    <rect x="920" y="16" width="100" height="34" rx="5" class="bx"/><text x="970" y="38" text-anchor="middle" class="t">Consumers</text>
+    <rect x="1050" y="16" width="100" height="34" rx="5" class="st"/><text x="1100" y="38" text-anchor="middle" class="t">Read model</text>
+  </g>
+  <line x1="60" y1="50" x2="60" y2="605" class="life"/>
+  <line x1="190" y1="50" x2="190" y2="605" class="life"/>
+  <line x1="320" y1="50" x2="320" y2="605" class="life"/>
+  <line x1="450" y1="50" x2="450" y2="605" class="life"/>
+  <line x1="580" y1="50" x2="580" y2="605" class="life"/>
+  <line x1="710" y1="50" x2="710" y2="605" class="life"/>
+  <line x1="840" y1="50" x2="840" y2="605" class="life"/>
+  <line x1="970" y1="50" x2="970" y2="605" class="life"/>
+  <line x1="1100" y1="50" x2="1100" y2="605" class="life"/>
+
+  <rect x="436" y="172" width="300" height="104" rx="4" class="hl" opacity="0.9"/>
+  <text x="728" y="188" text-anchor="end" class="ta">single DB transaction</text>
+
+  <line x1="60" y1="90" x2="188" y2="90" class="e" marker-end="url(#a2)"/>
+  <text x="66" y="83" class="ts halo">PUT /user/accreditation/{id} · Idempotency-Key · If-Match?</text>
+
+  <line x1="190" y1="124" x2="318" y2="124" class="e" marker-end="url(#a2)"/>
+  <text x="196" y="117" class="ts halo">SET key = body hash, NX</text>
+
+  <line x1="190" y1="158" x2="448" y2="158" class="e" marker-end="url(#a2)"/>
+  <text x="196" y="151" class="ts halo">finalise(id, CONFIRMED, actor, expectedVersion?)</text>
+
+  <line x1="450" y1="198" x2="578" y2="198" class="e" marker-end="url(#a2)"/>
+  <text x="456" y="192" class="ts halo">SELECT … FOR UPDATE</text>
+
+  <path d="M450,218 h40 v18 h-38" class="e" marker-end="url(#a2)"/>
+  <text x="496" y="231" class="ts halo">decide() → Accepted(Confirmed)</text>
+
+  <line x1="450" y1="262" x2="578" y2="262" class="e" marker-end="url(#a2)"/>
+  <text x="456" y="256" class="ts halo">UPDATE + INSERT outbox · COMMIT</text>
+
+  <line x1="190" y1="334" x2="62" y2="334" class="e" marker-end="url(#a2)"/>
+  <text x="70" y="327" class="ts halo">200 {accreditation_id} · ETag</text>
+
+  <line x1="10" y1="364" x2="1150" y2="364" stroke="var(--accent)" stroke-width="1" stroke-dasharray="8 5"/>
+  <text x="580" y="382" text-anchor="middle" class="ta halo">request has returned · everything below is asynchronous (typically &lt; 1 s)</text>
+
+  <line x1="710" y1="414" x2="582" y2="414" class="ea" marker-end="url(#a2)"/>
+  <text x="590" y="407" class="ts halo">SELECT unsent ORDER BY id LIMIT 100</text>
+
+  <line x1="710" y1="448" x2="838" y2="448" class="ea" marker-end="url(#a2)"/>
+  <text x="716" y="441" class="ts halo">send key=accreditation_id, acks=all</text>
+
+  <line x1="710" y1="482" x2="582" y2="482" class="ea" marker-end="url(#a2)"/>
+  <text x="590" y="475" class="ts halo">mark the acknowledged prefix</text>
+
+  <line x1="840" y1="516" x2="968" y2="516" class="ea" marker-end="url(#a2)"/>
+  <text x="846" y="509" class="ts halo">poll</text>
+
+  <line x1="970" y1="550" x2="1098" y2="550" class="ea" marker-end="url(#a2)"/>
+  <text x="866" y="543" class="ts halo">upsert view if newer · insert history</text>
+
+  <line x1="970" y1="584" x2="842" y2="584" class="ea" marker-end="url(#a2)"/>
+  <text x="850" y="577" class="ts halo">commit offset</text>
+</svg>
+<figcaption><strong>Figure 3.</strong> <code>PUT</code>, plus the asynchronous half shared by every write. The highlighted transaction is the only place state changes, and it records the event atomically. If the admin sends <code>If-Match</code> with the version they reviewed, <code>decide</code> also rejects a stale decision (412). The relay stops a batch at the first failed send and marks only the rows Kafka acknowledged, so it never publishes a later version ahead of an earlier one. Duplicates (a crash between send and mark, or before the offset commit) are absorbed by the version guard and the unique <code>event_id</code>.</figcaption>
+</figure>
+
+<!-- ============================================================ -->
+<h2 id="lifecycle">5. Accreditation lifecycle</h2>
+<figure>
+<svg viewBox="0 0 900 280" role="img" aria-label="State machine: PENDING can move to CONFIRMED, FAILED or EXPIRED; CONFIRMED can move to EXPIRED or FAILED; FAILED and EXPIRED are terminal.">
+  <defs>
+    <marker id="a3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah"/></marker>
+  </defs>
+  <rect x="40" y="115" width="140" height="50" rx="25" class="bx"/>
+  <text x="110" y="145" text-anchor="middle" class="t">PENDING</text>
+  <text x="110" y="185" text-anchor="middle" class="tm">created by POST</text>
+
+  <rect x="380" y="30" width="140" height="50" rx="25" class="bx"/>
+  <text x="450" y="60" text-anchor="middle" class="t">CONFIRMED</text>
+
+  <rect x="380" y="200" width="140" height="50" rx="25" class="bx"/>
+  <rect x="384" y="204" width="132" height="42" rx="21" fill="none" stroke="currentColor" stroke-width="1"/>
+  <text x="450" y="230" text-anchor="middle" class="t">FAILED</text>
+  <text x="450" y="268" text-anchor="middle" class="tm">terminal</text>
+
+  <rect x="720" y="115" width="140" height="50" rx="25" class="bx"/>
+  <rect x="724" y="119" width="132" height="42" rx="21" fill="none" stroke="currentColor" stroke-width="1"/>
+  <text x="790" y="145" text-anchor="middle" class="t">EXPIRED</text>
+  <text x="790" y="185" text-anchor="middle" class="tm">terminal</text>
+
+  <line x1="170" y1="120" x2="380" y2="62" class="e" marker-end="url(#a3)"/>
+  <text x="250" y="78" class="ts">admin</text>
+
+  <line x1="170" y1="160" x2="380" y2="218" class="e" marker-end="url(#a3)"/>
+  <text x="250" y="208" class="ts">admin</text>
+
+  <line x1="180" y1="140" x2="718" y2="140" class="e" marker-end="url(#a3)"/>
+  <text x="236" y="156" class="ts halo">admin</text>
+
+  <line x1="520" y1="62" x2="730" y2="120" class="e" marker-end="url(#a3)"/>
+  <text x="560" y="70" class="ts">admin · job: updated_at &gt; 30 days</text>
+
+  <line x1="450" y1="80" x2="450" y2="198" class="e" marker-end="url(#a3)"/>
+  <text x="458" y="182" class="ts halo">admin: revoke</text>
+</svg>
+<figcaption><strong>Figure 4.</strong> <code>decide</code> is the authority on transitions (rule 4c is the database's, section 6). A request that changes a terminal state (FAILED or EXPIRED) returns <code>409 TRANSITION_NOT_ALLOWED</code> with the current status in the body, so rule 4a holds. CONFIRMED → FAILED is a revocation by an admin (for example, evidence later found to be forged); it emits <code>AccreditationFailed</code> with <code>previous_status: CONFIRMED</code>, and the job never takes this edge. Re-sending the current status, in any state, is a <code>NoOp</code>: 200, no event, and <code>updated_at</code> untouched, so a CONFIRMED accreditation's 30-day clock never restarts and a retried PUT gets the same answer as the original. The expiry job takes only the CONFIRMED → EXPIRED edge.</figcaption>
+</figure>
+
+<!-- ============================================================ -->
+<h2 id="concurrency">6. Concurrency and invariants (Requirement 9b)</h2>
+<p>There are two kinds of invariant, and each gets its own mechanism. Both are enforced by the write-model database inside the command transaction, never by the eventually consistent projection, and both hold for any number of service instances because MySQL is the only arbiter.</p>
+<p><strong>Topology:</strong> "the only arbiter" means one writable primary per record; app pods scale out, replicas only serve reads, and sharding by <code>user_id</code> keeps every user on one primary. <strong>Contention:</strong> row locks make only requests on the same row wait, for a few milliseconds, so parallel activity across users never waits; a per-user Redis lock would add a round trip to every write without removing any database work.</p>
+<figure>
+<svg viewBox="0 0 1000 300" role="img" aria-label="Two races: on the left, two admins update the same accreditation; the row lock makes the second wait, it then reads FAILED and is rejected with 409. On the right, two POSTs for the same user; the unique index on user_id_if_pending makes the second insert fail and it is rejected with 409.">
+  <defs>
+    <marker id="a4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah"/></marker>
+  </defs>
+  <text x="20" y="28" class="t">(a) Same accreditation, two admins</text>
+  <text x="20" y="46" class="tm">invariant scope: one row → row lock + decide()</text>
+
+  <text x="20" y="99" class="ts">Admin A</text>
+  <text x="20" y="113" class="tm">→ FAILED</text>
+  <rect x="120" y="84" width="240" height="34" rx="4" class="bx"/>
+  <text x="240" y="105" text-anchor="middle" class="ts">lock row · PENDING→FAILED · commit</text>
+  <text x="368" y="105" class="ts">200</text>
+
+  <text x="20" y="169" class="ts">Admin B</text>
+  <text x="20" y="183" class="tm">→ CONFIRMED</text>
+  <rect x="140" y="154" width="220" height="34" rx="4" class="wait"/>
+  <text x="250" y="175" text-anchor="middle" class="ts">SELECT … FOR UPDATE waits</text>
+  <rect x="360" y="154" width="120" height="34" rx="4" class="hl"/>
+  <text x="420" y="175" text-anchor="middle" class="ta">reads FAILED</text>
+  <text x="485" y="208" text-anchor="end" class="ta">409 TRANSITION_NOT_ALLOWED</text>
+
+  <line x1="360" y1="70" x2="360" y2="230" stroke="var(--muted)" stroke-dasharray="2 3"/>
+  <text x="360" y="246" text-anchor="middle" class="tm">A commits, lock released</text>
+  <line x1="120" y1="270" x2="450" y2="270" class="e" marker-end="url(#a4)"/>
+  <text x="454" y="274" class="tm">time</text>
+
+  <line x1="500" y1="20" x2="500" y2="285" stroke="var(--line)"/>
+
+  <text x="520" y="28" class="t">(b) Same user, two POSTs</text>
+  <text x="520" y="46" class="tm">invariant scope: many rows → unique index on generated column</text>
+
+  <text x="520" y="99" class="ts">POST 1</text>
+  <rect x="600" y="84" width="230" height="34" rx="4" class="bx"/>
+  <text x="715" y="105" text-anchor="middle" class="ts">INSERT PENDING · commit</text>
+  <text x="838" y="105" class="ts">201</text>
+
+  <text x="520" y="169" class="ts">POST 2</text>
+  <rect x="620" y="154" width="210" height="34" rx="4" class="wait"/>
+  <text x="725" y="175" text-anchor="middle" class="ts">INSERT waits on index entry</text>
+  <rect x="830" y="154" width="150" height="34" rx="4" class="hl"/>
+  <text x="905" y="175" text-anchor="middle" class="ta">duplicate key</text>
+  <text x="990" y="208" text-anchor="end" class="ta halo">409 PENDING_ACCREDITATION_EXISTS</text>
+
+  <line x1="830" y1="70" x2="830" y2="230" stroke="var(--muted)" stroke-dasharray="2 3"/>
+  <text x="830" y="246" text-anchor="middle" class="tm">POST 1 commits</text>
+  <line x1="600" y1="270" x2="970" y2="270" class="e" marker-end="url(#a4)"/>
+  <text x="974" y="274" class="tm">time</text>
+</svg>
+<figcaption><strong>Figure 5.</strong> (a) Rules 4a and 4b concern one accreditation, so a pessimistic row lock serialises the writers. <code>SELECT … FOR UPDATE</code> is a locking read: it returns the latest <em>committed</em> row, not a snapshot, so the loser is judged on the winner's result: FAILED is terminal, so CONFIRMED is rejected with the correct business error. (b) Rule 4c spans rows, so no row lock can cover it. MySQL has no partial unique index, so <code>user_id_if_pending</code> is a stored generated column, <code>CASE WHEN status = 'PENDING' THEN user_id END</code>, with a unique index; NULLs never collide, so the database allows at most one PENDING per user whichever code path writes.</figcaption>
+</figure>
+
+<h3>Interleavings that are handled explicitly</h3>
+<ul>
+  <li><strong>Lock, then read.</strong> Every command's first statement on the accreditation is the locking read (<code>SELECT … FOR UPDATE</code>); the 404, the <code>If-Match</code> check and <code>decide</code> all use that result. Anything read earlier, such as the expiry job's scan, is used only to find the row by ID, never to decide.</li>
+  <li><strong>Stale admin decision.</strong> Admin B reviews X as PENDING and decides to fail it; admin A confirms X first; B's FAILED is now legal against CONFIRMED and would silently revoke A's confirmation. With <code>If-Match: "&lt;version&gt;"</code> on <code>PUT</code> (the version comes from the <code>ETag</code> of the last <code>PUT</code> or from the history endpoint), B gets 412 instead. The header is optional, so the brief's requests work unchanged.</li>
+  <li><strong>Deadlocks.</strong> Concurrent inserts that collide on a unique index take shared locks, and three of them can deadlock when the first rolls back (MySQL error 1213). The whole transaction is retried up to twice, then answered with 503. A lock-wait timeout (1205, 3 s) rolls back the whole transaction and returns 503.</li>
+  <li><strong>Isolation level.</strong> The write datasource runs at READ COMMITTED. The invariants rest on primary-key locking reads and unique indexes, not on gap locks, and READ COMMITTED avoids gap locks that would otherwise make outbox inserts wait behind cleanup deletes or behind a lookup of a missing ID.</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="api">7. API surface and error model</h2>
+<div class="table-wrap">
+<table>
+  <tr><th>Method and path</th><th>Caller</th><th>Success</th><th>Errors</th></tr>
+  <tr><td><code>POST /user/accreditation</code></td><td>admin</td><td><code>201 {"accreditation_id"}</code></td><td>400 <code>VALIDATION_FAILED</code> · 413 body too large · 422 <code>USER_NOT_FOUND</code> · 422 <code>IDEMPOTENCY_KEY_REUSED</code> · 409 <code>PENDING_ACCREDITATION_EXISTS</code> · 503</td></tr>
+  <tr><td><code>PUT /user/accreditation/{id}</code></td><td>admin</td><td><code>200 {"accreditation_id"}</code>, <code>ETag</code></td><td>400 <code>VALIDATION_FAILED</code> (including outcome <code>PENDING</code>) · 404 <code>ACCREDITATION_NOT_FOUND</code> (also for a malformed ID) · 409 <code>TRANSITION_NOT_ALLOWED</code> · 412 <code>VERSION_MISMATCH</code> · 422 <code>IDEMPOTENCY_KEY_REUSED</code> · 503</td></tr>
+  <tr><td><code>GET /user/{userId}/accreditation</code></td><td>client</td><td><code>200</code>, the brief's shape with every accreditation; an empty map for a user with none, known or not</td><td>400 malformed <code>userId</code> · 503</td></tr>
+  <tr><td><code>GET /user/accreditation/{id}/history</code></td><td>admin</td><td><code>200</code>, every transition with its version, in order; the latest version is what an admin sends in <code>If-Match</code></td><td>404 · 503</td></tr>
+  <tr><td><code>POST /auth/token</code></td><td>local stand-in for the admin and user login endpoints</td><td><code>200 {"access_token"}</code>, an admin token or a user token</td><td>only when security is enabled</td></tr>
+  <tr><td><code>/health</code>, <code>/prometheus</code>, <code>/swagger-ui</code></td><td>ops</td><td>200</td><td>served on the management port, not 9999</td></tr>
+</table>
+</div>
+<p>All responses carry <code>X-Request-Id</code>; a caller-supplied value is accepted only if it matches <code>[A-Za-z0-9-]{1,64}</code>, otherwise a new one is generated. It flows to logs, outbox rows and Kafka headers. IDs in paths are parsed case-insensitively (the brief's example has an upper-case <code>C</code>). <code>401</code>/<code>403</code> appear only when security is enabled. <code>GET</code> for an unknown user returns an empty map rather than 404, so the endpoint is not an oracle for which users exist.</p>
+<p><strong>Request size.</strong> The server's maximum request size is set to 7 MB (5 MB decoded is about 6.7 MB of base64), and the base64 length is checked before decoding. Larger bodies get 413 before they are buffered.</p>
+
+<h3>Error body: one envelope for every error</h3>
+<div class="two-col">
+<pre><code>// 400
+{
+  "error_code": "VALIDATION_FAILED",
+  "message": "Request body is invalid",
+  "request_id": "7f3c9a1e-…",
+  "invalid_fields": [
+    { "field_name": "accreditation_type",
+      "error": "INVALID_VALUE",
+      "message": "must be one of BY_INCOME, BY_NET_WORTH" },
+    { "field_name": "document.content",
+      "error": "INVALID_BASE64",
+      "message": "must be valid base64, max 5 MB decoded" }
+  ]
+}</code></pre>
+<pre><code>// 409
+{
+  "error_code": "TRANSITION_NOT_ALLOWED",
+  "message": "Cannot change status from FAILED to CONFIRMED",
+  "request_id": "7f3c9a1e-…",
+  "current_status": "FAILED"
+}
+
+// 503 adds Retry-After
+{ "error_code": "SERVICE_UNAVAILABLE",
+  "message": "Please retry", "request_id": "…" }</code></pre>
+</div>
+<p>The envelope is snake_case to match the brief's payloads. Unknown fields in requests are rejected; responses may gain fields additively. The paths are fixed by the brief, so the versioning policy is additive change only, with a breaking change going to <code>/v2</code>.</p>
+
+
+<!-- ============================================================ -->
+<h2 id="idempotency">8. Idempotency and delivery semantics</h2>
+<div class="table-wrap">
+<table>
+  <tr><th>Hop</th><th>Guarantee</th><th>Mechanism</th></tr>
+  <tr><td>Client → API</td><td>A reused key with a different body is rejected</td><td>Optional <code>Idempotency-Key</code> (1–64 characters). <code>SET idem:{caller}:{route}:{key} sha256(body) NX EX 24h</code>, and the result <em>is used</em>: if the key already exists with a different hash, 422. Responses are not stored.</td></tr>
+  <tr><td>POST → DB</td><td>Exactly one accreditation per key</td><td><code>idempotency_key</code> and <code>request_sha256</code> on the accreditation row, unique on <code>(created_by, idempotency_key)</code>, written in the insert transaction. A retry, or a concurrent duplicate, returns the original <code>accreditation_id</code> with 201 (Figure 2).</td></tr>
+  <tr><td>PUT retries</td><td>The outcome is never applied twice</td><td>Re-sending the current status is a <code>NoOp</code> (200, no event) in any state, so a retried PUT, including one on FAILED or EXPIRED, gets the same 200 as the original.</td></tr>
+  <tr><td>Command → outbox</td><td>Exactly once, with the state change</td><td>Same DB transaction</td></tr>
+  <tr><td>Outbox → Kafka</td><td>At least once; ordered per accreditation</td><td>One relay at a time (section 11); ascending outbox <code>id</code>; per-aggregate ID order equals commit order because the row lock serialises writes to one accreditation; the relay selects <code>published_at IS NULL</code> rather than reading past a high-water mark, so a row that commits late is never skipped. <code>acks=all</code>, idempotent producer (which deduplicates retries within one producer session only). A batch stops at the first failed send.</td></tr>
+  <tr><td>Kafka → projection</td><td>Effectively once; never goes backwards</td><td>Version-guarded upsert (section 9), then a manual offset commit after the DB commit</td></tr>
+  <tr><td>Kafka → history</td><td>Effectively once; gaps detected</td><td>Duplicate <code>event_id</code> → ignored. Same <code>(accreditation_id, version)</code> with a different <code>event_id</code> is a bug → dead-letter topic and alert.</td></tr>
+</table>
+</div>
+
+<h3>Consumer failures: block and retry, dead-letter only poison</h3>
+<figure>
+<svg viewBox="0 0 1000 290" role="img" aria-label="Consumer error handling: a consumer reads a partition and writes to the read model, then commits its offset. A retryable infrastructure error makes it seek back, pause the partition and retry with exponential backoff until it succeeds. A non-retryable error sends the record to the consumer group's dead-letter topic and raises an alert.">
+  <defs>
+    <marker id="a7" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah"/></marker>
+    <marker id="a7h" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="aha"/></marker>
+  </defs>
+  <rect x="20" y="40" width="200" height="60" rx="6" class="st"/>
+  <text x="120" y="66" text-anchor="middle" class="t">events.v1</text>
+  <text x="120" y="84" text-anchor="middle" class="tm">partition p</text>
+
+  <rect x="380" y="40" width="200" height="60" rx="6" class="bx"/>
+  <text x="480" y="66" text-anchor="middle" class="t">Consumer</text>
+  <text x="480" y="84" text-anchor="middle" class="ts">one group per projection</text>
+
+  <rect x="760" y="40" width="220" height="60" rx="6" class="st"/>
+  <text x="870" y="66" text-anchor="middle" class="t">Read model</text>
+  <text x="870" y="84" text-anchor="middle" class="tm">views · history</text>
+
+  <rect x="620" y="180" width="220" height="56" rx="6" class="hl"/>
+  <text x="730" y="203" text-anchor="middle" class="t">events.v1.&lt;group&gt;.dlt</text>
+  <text x="730" y="221" text-anchor="middle" class="ts">alert · replay tool</text>
+
+  <line x1="220" y1="70" x2="378" y2="70" class="e" marker-end="url(#a7)"/>
+  <text x="299" y="62" text-anchor="middle" class="ts">poll</text>
+  <line x1="580" y1="70" x2="758" y2="70" class="e" marker-end="url(#a7)"/>
+  <text x="669" y="62" text-anchor="middle" class="ts">write · then commit offset</text>
+
+  <polyline points="440,100 440,160 120,160 120,102" class="ea" marker-end="url(#a7)"/>
+  <text x="280" y="150" text-anchor="middle" class="ts halo">retryable (DB down, timeout, deadlock)</text>
+  <text x="280" y="180" text-anchor="middle" class="ts">seek back · pause partition · backoff 0.5 s → 30 s</text>
+  <text x="280" y="196" text-anchor="middle" class="ts">retry until success · alert if stuck &gt; 60 s</text>
+
+  <polyline points="520,100 520,208 618,208" class="eh" marker-end="url(#a7h)"/>
+  <text x="730" y="256" text-anchor="middle" class="ta">non-retryable: cannot deserialise,</text>
+  <text x="730" y="272" text-anchor="middle" class="ta">schema violation, version clash</text>
+</svg>
+<figcaption><strong>Figure 6.</strong> These consumers only write to MySQL, so their failures are either infrastructure-wide (the next record would fail too) or poison. An infrastructure failure is retried <em>in place</em>, indefinitely, with exponential backoff: the consumer seeks back to the failed offset and pauses the partition while it waits, so it keeps polling and stays in the group. Per-key order is preserved and a database outage never turns into manual dead-letter work. An unrecognised error gets a bounded number of attempts (5, about 30 s) and then goes to the dead-letter topic, so an unexpected bug can never stall a partition forever. Poison records go straight to the dead-letter topic of that consumer group, with the error in headers; the replay tool re-publishes them to the main topic with the original key. Tiered retry topics (retry after 5 s, then 30 s) are the right tool for consumers that call flaky external services; none do here.</figcaption>
+</figure>
+
+<!-- ============================================================ -->
+<h2 id="data">9. Data model and identifiers</h2>
+<h3>Identifiers: UUIDv7, stored as <code>BINARY(16)</code></h3>
+<p>Accreditation, document and event IDs are UUIDv7, generated by the application: time-ordered, so inserts append to the primary-key index, and not guessable in the API. They are stored as <code>BINARY(16)</code> and exposed as the standard 36-character string.</p>
+
+<h3>Column conventions</h3>
+<ul>
+  <li><strong><code>user_id</code></strong> is an opaque, case-sensitive token (the brief's <code>g8NlYJnk…</code>): <code>VARCHAR(64) CHARACTER SET ascii COLLATE ascii_bin</code> in every table, validated at the API as <code>^[A-Za-z0-9_-]{1,64}$</code>. MySQL's default collation is case-insensitive and would treat <code>abcD</code> and <code>ABCd</code> as one user, leaking one user's accreditations to the other and blocking the wrong user under rule 4c.</li>
+  <li><strong>Times</strong> are <code>DATETIME(6)</code> in UTC, always set from the application's injected clock (never <code>ON UPDATE CURRENT_TIMESTAMP</code>, never mixed with the database clock); the JDBC connection and session time zone are fixed to UTC.</li>
+  <li><strong>Enums</strong> are <code>VARCHAR</code> with named <code>CHECK</code> constraints rather than MySQL <code>ENUM</code>, so adding a value is a plain migration.</li>
+</ul>
+
+<div class="two-col">
+<div>
+<h3>Admin write model: <code>accreditation_write</code></h3>
+<table>
+  <tr><th>Table</th><th>Key columns and constraints</th></tr>
+  <tr><td><code>accreditations</code></td><td>PK <code>id</code> · <code>user_id</code> · <code>accreditation_type</code>, <code>status</code> (CHECK) · <code>version</code> · <code>created_by</code>, <code>idempotency_key</code> NULL, <code>request_sha256</code>; UNIQUE (<code>created_by</code>, <code>idempotency_key</code>) · <code>created_at</code>, <code>updated_at</code> (equal on insert), <code>updated_by</code> · <code>user_id_if_pending</code> GENERATED STORED, UNIQUE</td></tr>
+  <tr><td><code>accreditation_documents</code></td><td>PK <code>accreditation_id</code> (FK) · <code>file_name</code> (sanitised), <code>mime_type</code>, <code>size_bytes</code>, <code>sha256</code> · <code>content</code> MEDIUMBLOB</td></tr>
+  <tr><td><code>outbox_events</code></td><td>PK <code>id</code> BIGINT AUTO_INCREMENT (publish order, never exposed) · UNIQUE <code>event_id</code> · <code>aggregate_id</code> · <code>event_type</code> · <code>payload</code> (the exact bytes published) · <code>request_id</code> · <code>published_at</code> NULL</td></tr>
+  <tr><td><code>known_users</code></td><td>PK <code>user_id</code> · <code>registered_at</code></td></tr>
+</table>
+</div>
+<div>
+<h3>Client read model: <code>accreditation_read</code></h3>
+<table>
+  <tr><th>Table</th><th>Key columns and constraints</th></tr>
+  <tr><td><code>accreditation_views</code></td><td>PK (<code>user_id</code>, <code>accreditation_id</code>) · UNIQUE <code>accreditation_id</code> · <code>accreditation_type</code> · <code>status</code> · <code>version</code> · <code>submitted_at</code> (set on insert only) · <code>updated_at</code></td></tr>
+  <tr><td><code>accreditation_status_history</code></td><td>PK (<code>accreditation_id</code>, <code>version</code>) · UNIQUE <code>event_id</code> · <code>event_type</code> · <code>from_status</code>, <code>to_status</code> · <code>performed_by</code> · <code>occurred_at</code></td></tr>
+  <tr><td><code>known_users</code></td><td>PK <code>user_id</code> (read-side copy)</td></tr>
+</table>
+</div>
+</div>
+
+<h3>Indexes and the query each one serves</h3>
+<div class="table-wrap">
+<table>
+  <tr><th>Index</th><th>Serves</th></tr>
+  <tr><td><code>accreditations UNIQUE (user_id_if_pending)</code></td><td>Rule 4c, enforced by the database; NULLs (rows that are not PENDING) never collide</td></tr>
+  <tr><td><code>accreditations UNIQUE (created_by, idempotency_key)</code></td><td>Duplicate POST detection, scoped per caller like the Redis key; NULL keys never collide</td></tr>
+  <tr><td><code>accreditations (status, updated_at)</code></td><td>Expiry job: keyset walk <code>WHERE status = ? AND updated_at &lt; :cutoff AND (updated_at, id) &gt; (:last_at, :last_id) ORDER BY updated_at, id LIMIT 500</code></td></tr>
+  <tr><td><code>outbox_events (published_at, id)</code></td><td>Relay: <code>WHERE published_at IS NULL ORDER BY id LIMIT 100</code> without a filesort; cleanup in primary-key batches of 500, with <code>published_at &lt; cutoff</code> repeated in the <code>DELETE</code></td></tr>
+  <tr><td><code>accreditation_views</code> clustered PK <code>(user_id, accreditation_id)</code></td><td>Client <code>GET</code>: a user's rows are physically adjacent, so the read is one short range scan with no secondary lookups</td></tr>
+  <tr><td><code>accreditation_status_history</code> PK <code>(accreditation_id, version)</code></td><td>History endpoint in version order; a second event for the same version is rejected</td></tr>
+</table>
+</div>
+
+<h3>Applying an event to the projection</h3>
+<div class="two-col">
+<pre><code>-- 1. apply the event only if it is newer than what we hold
+UPDATE accreditation_views
+   SET status = ?, version = ?, updated_at = ?
+ WHERE accreditation_id = ? AND version &lt; ?;
+
+-- 2. if no row was updated, insert it
+INSERT INTO accreditation_views
+  (user_id, accreditation_id, accreditation_type,
+   status, version, submitted_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?);
+-- duplicate key here: the row exists with the same or a
+-- newer version, so the event is ignored</code></pre>
+<div>
+<p>A guarded <code>UPDATE</code> followed, only if it matched nothing, by a plain <code>INSERT</code>. A duplicate event, or one older than the version held, changes nothing; the projection never goes backwards. Each partition has one consumer thread, so two events for the same accreditation are never applied at once; the caught duplicate-key error covers the case anyway.</p>
+<p>History inserts catch the duplicate-key error and check which key fired, rather than using <code>INSERT IGNORE</code>, which would also hide other errors.</p>
+</div>
+</div>
+<p>The document sits in its own table, so status reads never touch the blob. It is decoded and hashed before the transaction begins, so the blob write does not lengthen the time the unique-index lock is held. In production it would go to object storage (section 12), with only the checksum and key kept in the DB. Events never carry the file.</p>
+
+<!-- ============================================================ -->
+<h2 id="events">10. Event contract and topics</h2>
+<div class="two-col">
+<pre><code>// topic accreditation.events.v1, key = accreditation_id
+// headers: X-Request-Id, event_type
+{
+  "event_id": "0192a1d0-6f1d-7c3a-9a51-3c1f0b7d2e10",
+  "event_type": "AccreditationConfirmed",
+  "schema_version": 1,
+  "accreditation_id": "0192a1c9-5a20-7b11-8f0e-6a2d9c4b7f31",
+  "user_id": "g8NlYJnk7zK9BlB1J2Ebjs0AkhCTpE1V",
+  "accreditation_type": "BY_INCOME",
+  "previous_status": "PENDING",
+  "status": "CONFIRMED",
+  "version": 2,
+  "submitted_at": "2026-10-12T08:01:02.000000Z",
+  "occurred_at": "2026-10-15T09:12:44.123456Z",
+  "performed_by": "admin-7"
+}</code></pre>
+<div>
+<p><strong>Named facts.</strong> A sealed family: <code>AccreditationSubmitted</code> (version 1, carries <code>document_sha256</code>, no previous status), <code>AccreditationConfirmed</code>, <code>AccreditationFailed</code> and <code>AccreditationExpired</code>. Each reads as an entry in an audit trail, and consumers switch on them exhaustively. The expiry job's events carry <code>performed_by: "system:expiry-job"</code>.</p>
+<p><strong>Snapshot fields.</strong> Every event carries the full current state (user, type, status, version, <code>submitted_at</code>), so a consumer can build or repair its row from any single event. <code>previous_status</code> makes each event a complete from→to change, as requirement 2 asks, without a lookup.</p>
+<p><strong>Evolution.</strong> Additive changes only within <code>v1</code>; consumers ignore unknown fields. A breaking change means a new topic (<code>v2</code>), written in parallel during migration. Production would enforce this with Avro or Protobuf and a Schema Registry in backward-compatibility mode; here events are versioned JSON, readable with <code>kafka-console-consumer</code>.</p>
+<p><strong>Audit record.</strong> The topic is the system of record for the audit trail: it is append-only and kept forever. The history table is a queryable projection of it and can be rebuilt from it.</p>
+</div>
+</div>
+
+<h3>Topics</h3>
+<div class="table-wrap">
+<table>
+  <tr><th>Topic</th><th>Key</th><th>Partitions</th><th>Cleanup / retention</th><th>Replication</th></tr>
+  <tr><td><code>accreditation.events.v1</code></td><td><code>accreditation_id</code></td><td>6</td><td>delete, retention forever</td><td rowspan="4">Compose: 1 broker, RF 1. Production: RF 3, <code>min.insync.replicas</code> 2, unclean leader election off</td></tr>
+  <tr><td><code>accreditation.events.v1.&lt;group&gt;.dlt</code></td><td>same</td><td>1</td><td>delete, 30 days</td></tr>
+  <tr><td><code>user.events.v1</code></td><td><code>user_id</code></td><td>3</td><td>compact (a deleted user is a tombstone)</td></tr>
+  <tr><td><code>user.events.v1.&lt;group&gt;.dlt</code></td><td>same</td><td>1</td><td>delete, 30 days</td></tr>
+</table>
+</div>
+<p><strong>Partition counts.</strong> Throughput needs one partition (a few events per second at peak). The counts are sized for consumer parallelism, since a group has at most one active consumer per partition, and so they never need to grow: adding partitions to a keyed topic moves keys and breaks per-key ordering during the change. Two per broker on a three-broker production cluster gives 6; user events are rarer, so 3.</p>
+<p>Automatic topic creation is off; a compose init container creates the topics and publishes <code>UserRegistered</code> for the brief's sample user and a few others. Consumer groups: <code>accreditation-projection</code>, <code>accreditation-history</code>, <code>users-write-copy</code>, <code>users-read-copy</code>.</p>
+
+<!-- ============================================================ -->
+<h2 id="jobs">11. Background jobs and threading</h2>
+<div class="table-wrap">
+<table>
+  <tr><th>Job</th><th>Schedule</th><th>What it does</th></tr>
+  <tr><td>Outbox relay</td><td>every 500 ms</td><td>Drains: repeats batches of 100 while batches are full; sends a batch asynchronously, flushes, then marks the acknowledged rows in order up to the first failure. Producer timeouts (<code>delivery.timeout.ms</code> 30 s) bound a slow broker. Deletes published rows older than 7 days in primary-key batches of 500.</td></tr>
+  <tr><td>Expiry</td><td>hourly (configurable)</td><td>Computes the cutoff once per run from the injected clock, then walks <code>CONFIRMED</code> rows with <code>updated_at</code> older than 30 days, using the keyset walk in section 9. The scan collects IDs only. Each ID gets its own short transaction: row lock, then eligibility re-checked on the locked row (status is CONFIRMED <em>and</em> <code>updated_at</code> is before the cutoff), then <code>decide</code>, update and outbox event. A row an admin changed after the scan fails the re-check and is skipped, so nothing is ever decided on the scanned values.</td></tr>
+</table>
+</div>
+<p><strong>One runner per job.</strong> Every job method carries <code>@ScheduledJobLock</code>. An interceptor runs <code>SELECT GET_LOCK('job:Class.method', 0)</code> on a dedicated connection: the first pod gets the lock and runs; every other pod gets 0 and <em>skips</em> that run instead of queuing. The lock is held by the connection, so it is released when the job finishes, when the pod dies, or when the connection drops; there is no lease that can expire mid-run. Jobs need MySQL anyway, so this adds no dependency and Redis is never under a job. A MySQL failover drops the lock; a second relay could then overlap briefly, which the consumers absorb (duplicates and reordering are handled by the version guard). If one runner ever becomes too slow, <code>SELECT … FOR UPDATE SKIP LOCKED</code> lets several pods share the work.</p>
+
+<h3>Threading on Java 21</h3>
+<div class="table-wrap">
+<table>
+  <tr><th>Work</th><th>Runs on</th><th>Why</th></tr>
+  <tr><td>HTTP handlers</td><td>Virtual threads (<code>@ExecuteOn(TaskExecutors.BLOCKING)</code>, backed by virtual threads on Java 21)</td><td>Handlers block on JDBC and Redis; blocking a virtual thread is cheap, so concurrency is bounded by the connection pools, which are the real limit. A per-route semaphore caps in-flight requests so overload is shed with 503 rather than queued.</td></tr>
+  <tr><td>Expiry job, per accreditation</td><td>A virtual-thread-per-task executor with a <code>Semaphore</code> of half the write pool</td><td>Each expiry is an independent short transaction; the semaphore keeps the job from starving admin writes of connections.</td></tr>
+  <tr><td>Kafka poll loops</td><td>One platform thread per consumer</td><td><code>KafkaConsumer</code> is not thread-safe; parallelism comes from partitions.</td></tr>
+  <tr><td>Outbox relay</td><td>The scheduler thread</td><td>Deliberately sequential, so publish order is preserved.</td></tr>
+</table>
+</div>
+<p>Virtual threads raise how many requests can wait on I/O at once; they do not make a single request faster. Code on virtual threads avoids <code>synchronized</code> around blocking calls, which would pin the carrier thread on Java 21.</p>
+
+<!-- ============================================================ -->
+<h2 id="security">12. Security and compliance</h2>
+<p>Accreditation evidence (tax returns, bank and brokerage statements) is sensitive personal and financial data. Security is fully built but <strong>off by default</strong>, so the brief's requests run unchanged; <code>SECURITY_ENABLED=true ./run.sh</code> turns it on, and the integration tests run with it on.</p>
+<div class="table-wrap">
+<table>
+  <tr><th>Concern</th><th>Design</th></tr>
+  <tr><td>Authentication</td><td>JWT bearer tokens, signed and checked for expiry. Two kinds: an <strong>admin token</strong> and a <strong>user token</strong> (carrying the <code>user_id</code>). In production, admins and users obtain them by logging in with email and password at the authentication service, which is out of scope here; locally, <code>POST /auth/token</code> stands in for those logins.</td></tr>
+  <tr><td>Authorisation</td><td>Admin endpoints and history require an admin token. <code>GET /user/{userId}/accreditation</code> accepts an admin token, or a user token for that same <code>userId</code>, so a user can never read another user's accreditations.</td></tr>
+  <tr><td>Audit actor</td><td><code>performed_by</code> and <code>created_by</code> come only from the token subject, never from the body or a header; with security off they are <code>anonymous</code>. The idempotency scope uses the same identity.</td></tr>
+  <tr><td>Operational endpoints</td><td>Health, metrics and Swagger UI on a separate management port, not on 9999.</td></tr>
+  <tr><td>Documents</td><td>Size-capped before decoding; MIME type from an allow-list (PDF, PNG, JPEG); <code>file_name</code> sanitised (length, path separators, control characters). Documents are never served back by this service. Production: object storage with server-side envelope encryption (KMS) and malware scanning on upload; the database keeps only the key and checksum.</td></tr>
+  <tr><td>Logging</td><td>Request bodies and <code>document.content</code> are never logged; the HTTP log redacts them. Logs carry IDs and the request ID only.</td></tr>
+  <tr><td>Retention and erasure</td><td>Accreditation records fall under regulatory record-keeping obligations that can conflict with GDPR erasure requests. Events carry only <code>user_id</code> and the document checksum, no personal details. Production would encrypt any personal fields per user and destroy the key on erasure (crypto-shredding), so the permanent topic stays append-only; the users topic gets a tombstone.</td></tr>
+  <tr><td>Infrastructure</td><td>Compose uses development credentials. Production: secrets from a vault or Kubernetes secrets; TLS everywhere; Kafka and Redis require each service to authenticate, and grant it only the topics, consumer groups and keys it needs; least-privilege database users per schema (the query module has no grant on the write schema).</td></tr>
+  <tr><td>Input hygiene</td><td>Strict JSON (unknown fields rejected), validated IDs, a validated or regenerated <code>X-Request-Id</code> so callers cannot inject into logs or headers.</td></tr>
+</table>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="failures">13. Failure modes</h2>
+<div class="table-wrap">
+<table>
+  <tr><th>Failure</th><th>Effect</th><th>Behaviour and alert</th></tr>
+  <tr><td>Kafka unavailable</td><td>Admin API unaffected; client view and audit history go stale</td><td>Outbox rows accumulate (about 1 KB each; a day of peak writes is a few MB) and the relay drains them on recovery. Alert on outbox age &gt; 30 s.</td></tr>
+  <tr><td>MySQL unavailable</td><td>Reads and writes fail; consumers pause</td><td><code>503</code> with <code>Retry-After</code>; pool acquire timeouts are short so requests are not held. Consumers retry in place (Figure 6) and resume where they stopped.</td></tr>
+  <tr><td>Redis unavailable</td><td>No check for a reused key with a different body</td><td>Requests run on the database guarantees (POST deduplicated by its unique key; PUT retries are a <code>NoOp</code> returning 200). Short Redis timeouts (100 ms, no retries) keep latency flat. Jobs and the client path do not use Redis.</td></tr>
+  <tr><td>Lock wait (3 s) or deadlock</td><td>One request fails</td><td>Deadlock: whole transaction retried up to twice. Otherwise <code>503</code> with <code>Retry-After</code>; the retry is safe.</td></tr>
+  <tr><td>Relay crash after send, before mark</td><td>Duplicate publish</td><td>Consumers are idempotent</td></tr>
+  <tr><td>Consumer crash before offset commit</td><td>Redelivery</td><td>Version-guarded upsert; unique <code>event_id</code></td></tr>
+  <tr><td>Poison event</td><td>That event is set aside; the partition continues</td><td>Dead-letter topic of the group; alert when any dead-letter topic is non-empty</td></tr>
+  <tr><td>Consumer lag</td><td>Client view stale</td><td>Alert when freshness (event time → applied) exceeds 30 s</td></tr>
+  <tr><td>Two pods fire the same job</td><td>None</td><td><code>GET_LOCK</code> with zero wait; the second skips</td></tr>
+  <tr><td>Expiry job down for a day</td><td>Accreditations stay CONFIRMED past 30 days</td><td>Alert on "last successful expiry run" &gt; 2 h. Eligibility checks at investment time should also treat a CONFIRMED older than 30 days as expired.</td></tr>
+  <tr><td>Projection needs rebuilding</td><td>None for clients</td><td>Build a new table from the earliest offset with a new consumer group, then switch reads to it (blue/green); the topic keeps events forever</td></tr>
+</table>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="scaling">14. Scaling the client path (Requirement 9c)</h2>
+<p>Client traffic produces no events, so the client path scales independently of Kafka and of the admin path. Each step below is taken only when its trigger shows up in the metrics, cheapest first, against the objectives in section 2.</p>
+<div class="table-wrap">
+<table>
+  <tr><th>Step</th><th>Change</th><th>Trigger</th></tr>
+  <tr><td>1. Measure</td><td>Load test at 1×, 5× and 10× of the section 2 baseline; dashboards for per-route rate, errors and duration, connection-pool wait, consumer lag and freshness</td><td>Always first</td></tr>
+  <tr><td>2. Make each GET cheap</td><td>Keep each GET to one indexed read (section 9), size the read connection pool, and answer 503 quickly when it is full instead of letting requests queue</td><td>Slow queries or requests waiting for a connection</td></tr>
+  <tr><td>3. Run more copies</td><td>The service is already stateless (jobs are single-run under <code>GET_LOCK</code>), so add replicas behind the load balancer. Client routes get their own bulkhead (thread and connection limits); note that copies still share each instance's CPU and heap between admin and client work</td><td>CPU &gt; 70 % or in-flight requests at the cap</td></tr>
+  <tr><td>4. Read replicas</td><td>Point the read datasource at replicas of the read-model database. Replica lag adds to freshness, and two replicas can be at different points, so a user could see CONFIRMED then PENDING; route each user to one replica (consistent hashing) to keep reads monotonic</td><td>Read-DB CPU &gt; 60 % or its share of p99</td></tr>
+  <tr><td>5. Cache, if it pays</td><td>A <em>separate</em> Redis (<code>allkeys-lru</code>, unlike the idempotency Redis's <code>noeviction</code>). Each entry carries the user's highest version, and both the projector and a reader that misses write it only if newer (a small script), so a stale fill can never overwrite a newer value; TTL 60 s; one in-flight load per key</td><td>Measured hit ratio above ~70 % and replicas becoming the cost driver</td></tr>
+  <tr><td>6. Split the deployable</td><td>Command service (small), query service scaled on CPU and in-flight requests with a non-zero minimum and a readiness delay for JVM warm-up, and the projector as its own deployment sized to the partition count (so client scaling never rebalances consumers). Total connections, instances × pool, stay under the database's <code>max_connections</code>, or a proxy pools them</td><td>GC or CPU interference between paths, or different deploy cadences</td></tr>
+  <tr><td>7. Edge</td><td>Gateway: authentication once, rate limits per user or IP (429)</td><td>Abusive or bursty clients</td></tr>
+</table>
+</div>
+<figure>
+<svg viewBox="0 0 1000 380" role="img" aria-label="Today: one deployable with command, query and consumers sharing MySQL, Kafka and Redis. After step 6: a gateway routes admin traffic to a small command service on the MySQL primary and client traffic to a horizontally scaled query service that reads a versioned cache and, on a miss, the read-model database or its replicas; a projector deployment sized to the partitions consumes Kafka and writes both.">
+  <defs>
+    <marker id="a5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah"/></marker>
+  </defs>
+  <text x="20" y="28" class="t">Today (this submission)</text>
+  <rect x="20" y="50" width="330" height="170" rx="8" class="grp"/>
+  <text x="185" y="72" text-anchor="middle" class="ts">accreditation-service · port 9999</text>
+  <rect x="40" y="86" width="290" height="32" rx="5" class="bx"/><text x="185" y="107" text-anchor="middle" class="ts">admin API + command + relay + expiry</text>
+  <rect x="40" y="128" width="290" height="32" rx="5" class="bx"/><text x="185" y="149" text-anchor="middle" class="ts">client API + query</text>
+  <rect x="40" y="170" width="290" height="32" rx="5" class="bx"/><text x="185" y="191" text-anchor="middle" class="ts">consumers</text>
+  <rect x="20" y="250" width="124" height="44" rx="5" class="st"/><text x="82" y="270" text-anchor="middle" class="ts">MySQL</text><text x="82" y="285" text-anchor="middle" class="tm">write + read DBs</text>
+  <rect x="154" y="250" width="93" height="44" rx="5" class="st"/><text x="200" y="277" text-anchor="middle" class="ts">Kafka</text>
+  <rect x="257" y="250" width="93" height="44" rx="5" class="st"/><text x="303" y="270" text-anchor="middle" class="ts">Redis</text><text x="303" y="285" text-anchor="middle" class="tm">idempotency</text>
+  <text x="20" y="330" class="tm">Client and admin work share each instance's CPU,</text>
+  <text x="20" y="346" class="tm">heap and the MySQL server; pools are separate.</text>
+
+  <line x1="390" y1="20" x2="390" y2="360" stroke="var(--line)"/>
+
+  <text x="420" y="28" class="t">After step 6 (what changes)</text>
+  <rect x="520" y="44" width="400" height="40" rx="6" class="hl"/>
+  <text x="720" y="62" text-anchor="middle" class="t">API gateway</text>
+  <text x="720" y="77" text-anchor="middle" class="ts">auth · per-user rate limits</text>
+
+  <rect x="430" y="120" width="190" height="52" rx="6" class="bx"/>
+  <text x="525" y="143" text-anchor="middle" class="t">command-service ×2</text>
+  <text x="525" y="160" text-anchor="middle" class="ts">admin API · relay · expiry</text>
+
+  <rect x="790" y="120" width="190" height="52" rx="6" class="hl"/>
+  <text x="885" y="143" text-anchor="middle" class="t">query-service ×N</text>
+  <text x="885" y="160" text-anchor="middle" class="ts">client API · autoscaled</text>
+
+  <rect x="430" y="250" width="190" height="48" rx="6" class="st"/>
+  <text x="525" y="271" text-anchor="middle" class="t">MySQL primary</text>
+  <text x="525" y="287" text-anchor="middle" class="ts">admin write model</text>
+
+  <rect x="650" y="190" width="90" height="40" rx="6" class="st"/>
+  <text x="695" y="215" text-anchor="middle" class="t">Kafka</text>
+
+  <rect x="640" y="270" width="130" height="48" rx="6" class="hl"/>
+  <text x="705" y="291" text-anchor="middle" class="t">projector ×P</text>
+  <text x="705" y="307" text-anchor="middle" class="ts">P ≤ partitions</text>
+
+  <rect x="840" y="200" width="140" height="44" rx="6" class="hl"/>
+  <text x="910" y="219" text-anchor="middle" class="t">cache Redis</text>
+  <text x="910" y="235" text-anchor="middle" class="ts">LRU · versioned</text>
+
+  <rect x="800" y="300" width="180" height="48" rx="6" class="hl"/>
+  <text x="890" y="321" text-anchor="middle" class="t">read model</text>
+  <text x="890" y="337" text-anchor="middle" class="ts">primary + replicas</text>
+
+  <line x1="600" y1="84" x2="550" y2="118" class="e" marker-end="url(#a5)"/>
+  <text x="566" y="104" text-anchor="end" class="ts">admin routes</text>
+  <line x1="840" y1="84" x2="870" y2="118" class="e" marker-end="url(#a5)"/>
+  <text x="862" y="108" class="ts">client routes</text>
+  <line x1="525" y1="172" x2="525" y2="248" class="e" marker-end="url(#a5)"/>
+  <line x1="620" y1="165" x2="660" y2="190" class="ea" marker-end="url(#a5)"/>
+  <text x="630" y="200" text-anchor="end" class="ts">events</text>
+  <line x1="695" y1="230" x2="702" y2="268" class="ea" marker-end="url(#a5)"/>
+  <line x1="770" y1="306" x2="798" y2="318" class="ea" marker-end="url(#a5)"/>
+  <line x1="760" y1="270" x2="838" y2="226" class="ea" marker-end="url(#a5)"/>
+  <text x="800" y="242" text-anchor="end" class="ts halo">set if newer</text>
+  <line x1="910" y1="172" x2="910" y2="198" class="e" marker-end="url(#a5)"/>
+  <text x="918" y="190" class="ts">read</text>
+  <line x1="820" y1="172" x2="820" y2="298" class="e" marker-end="url(#a5)"/>
+  <text x="826" y="288" class="ts halo">on miss</text>
+</svg>
+<figcaption><strong>Figure 7.</strong> Highlighted elements are what the scaled design adds; they arrive one step at a time and only on their triggers. The read model already has its own logical database, datasource and consumers, so separating it is configuration. Partitions are not a 9c lever: client traffic adds no events, and the topic is created with 6 partitions so projector parallelism never requires repartitioning.</figcaption>
+</figure>
+
+<!-- ============================================================ -->
+<h2 id="tests">15. Test strategy</h2>
+<div class="table-wrap">
+<table>
+  <tr><th>Level</th><th>What it proves</th><th>Examples</th></tr>
+  <tr><td>Unit (no containers)</td><td>Business rules and pure code</td><td>Every (state × command) pair through <code>decide</code>, including terminal states and a repeat of the current status in every state (200 no-op), expiry of an accreditation that is no longer CONFIRMED or was updated after the cutoff, and <code>If-Match</code>; UUIDv7 format and ordering; validation and error mapping</td></tr>
+  <tr><td>Contract</td><td>The brief's API, byte for byte</td><td>The brief's exact POST, PUT and GET payloads; response field names and shapes; status codes for each error</td></tr>
+  <tr><td>Integration (Testcontainers: MySQL, Kafka, Redis)</td><td>The wiring and the real database behaviour</td><td>End to end POST → PUT → GET and history; confirm then fail (revocation): <code>AccreditationFailed</code> with <code>previous_status: CONFIRMED</code> reaches GET and history; outbox published after a Kafka outage; projection with duplicate and out-of-order events; poison event to the dead-letter topic; consumer blocks while MySQL is stopped and resumes; collation (<code>abcD</code> ≠ <code>ABCd</code>); expiry job: <code>AccreditationExpired</code> is published, GET shows EXPIRED, and history records it with <code>system:expiry-job</code></td></tr>
+  <tr><td>Concurrency</td><td>The 9b guarantees under real contention</td><td>20 parallel PUTs with mixed outcomes on one PENDING: every accepted change is a legal transition from the state committed just before it, with exactly one event each, and once FAILED or EXPIRED every later request for a different status gets 409; parallel POSTs for one user: exactly one PENDING; expiry job racing an admin revocation; deadlock retry; two job instances: one run</td></tr>
+  <tr><td>Idempotency</td><td>Retries are safe</td><td>A retried POST returns the original ID with 201; concurrent duplicates create one accreditation; same key and different body: 422; key reuse across admins does not collide</td></tr>
+  <tr><td>Security (enabled)</td><td>Access rules</td><td>401 without a token; 403 for a user reading another user; admin-only routes; <code>performed_by</code> from the token</td></tr>
+  <tr><td>Architecture</td><td>Module boundaries</td><td>ArchUnit: <code>command</code> and <code>query</code> never depend on each other; <code>domain</code> has no framework imports</td></tr>
+  <tr><td>Smoke</td><td>The packaged stack</td><td><code>smoke.sh</code> replays the brief's requests against <code>run.sh</code> and polls for the eventually consistent GET</td></tr>
+</table>
+</div>
+<p><code>./mvnw verify</code> runs everything except the smoke test and needs only Docker; CI runs the same command. <code>run.sh</code> does not run the tests, so starting the service stays fast.</p>
+
+<!-- ============================================================ -->
+<h2 id="run">16. Run and verify</h2>
+<div class="two-col">
+<div>
+<ul>
+  <li><strong>Prerequisites:</strong> Docker with Compose v2. No JDK: the image is built in a multi-stage Dockerfile.</li>
+  <li><strong><code>./run.sh</code></strong> builds the image and starts the stack in order, each step waiting for the previous one's health check: MySQL → Kafka → init (creates the topics with the partition counts in section 10, seeds sample users) → service (Flyway migrations on start). It prints the URLs once the service is healthy on <code>http://localhost:9999</code>.</li>
+  <li><strong><code>./smoke.sh</code></strong> runs the brief's requests and prints each response.</li>
+  <li><strong><code>requests.http</code></strong> has every request, including the security-enabled flow with admin and user tokens.</li>
+  <li><strong>Watching events:</strong> <code>docker compose exec kafka kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic accreditation.events.v1 --from-beginning</code></li>
+  <li><strong><code>./run.sh down</code></strong> stops the stack; <code>./run.sh clean</code> also removes its volumes.</li>
+</ul>
+</div>
+<div>
+<pre><code># the brief's flow, end to end
+curl -s -X POST localhost:9999/user/accreditation \
+  -H 'Content-Type: application/json' -d '{
+  "user_id": "g8NlYJnk7zK9BlB1J2Ebjs0AkhCTpE1V",
+  "accreditation_type": "BY_INCOME",
+  "document": { "name": "2018.pdf",
+    "mime_type": "application/pdf",
+    "content": "ICAiQC8qIjogWyJzcmMvKiJdCiAgICB9CiAgfQp9Cg==" }}'
+# → 201 {"accreditation_id":"0192…"}
+
+curl -s -X PUT localhost:9999/user/accreditation/0192… \
+  -H 'Content-Type: application/json' -d '{"outcome":"CONFIRMED"}'
+
+curl -s localhost:9999/user/g8NlYJnk7zK9BlB1J2Ebjs0AkhCTpE1V/accreditation
+# eventually consistent: normally visible within a second</code></pre>
+</div>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="decisions">17. Decisions and rejected alternatives</h2>
+<div class="table-wrap">
+<table>
+  <tr><th>Decision</th><th>Why</th><th>Rejected</th><th>Cost accepted</th></tr>
+  <tr><td>CQRS with a transactional outbox</td><td>Checks stay strongly consistent; the brief's event-built read model is met; nothing is ever written to only one of DB and Kafka</td><td>Publish first and let a consumer build state (stale checks); dual write; full event sourcing (the cross-row rule 4c needs a uniqueness reservation, plus upcasting and replay tooling)</td><td>An extra table and a relay; client reads are eventually consistent</td></tr>
+  <tr><td>Row lock and a pure <code>decide</code></td><td>The invariant is enforced where it lives; deterministic business errors; short transactions</td><td>Redisson lock per accreditation; optimistic version with retry; single writer per key via Kafka</td><td>A waiting writer holds a DB connection, bounded by a 3 s lock wait</td></tr>
+  <tr><td>Unique index on a generated column for 4c</td><td>Atomic across rows, whichever code path writes</td><td>Check-then-insert (races); a per-user distributed lock</td><td>MySQL-specific DDL</td></tr>
+  <tr><td>READ COMMITTED on the write datasource</td><td>No gap locks between cleanup, lookups and inserts; the invariants do not rely on them</td><td>The default REPEATABLE READ</td><td>Two reads in one transaction can see different data; no rule here relies on them matching</td></tr>
+  <tr><td>UUIDv7 as <code>BINARY(16)</code></td><td>No coordination, time-ordered inserts, opaque in the API, known before insert</td><td>AUTO_INCREMENT (guessable, leaks volume); 64-bit time + node + sequence (needs node-ID coordination); UUIDv4 (random inserts split index pages)</td><td>16-byte keys; <code>BIN_TO_UUID</code> when reading SQL by hand</td></tr>
+  <tr><td>Idempotency key: Redis check, database unique key</td><td>Exactly-once creation guaranteed by the DB; Redis rejects a reused key with a different body; no stored responses</td><td>Storing and replaying responses (claim states, tokens, more failure cases); Redis only (not the authority)</td><td>Response bodies are rebuilt rather than replayed (they contain only the ID)</td></tr>
+  <tr><td>Blocking retry, then a dead-letter topic</td><td>Outages heal on their own without manual replay; per-key order preserved</td><td>Tiered retry topics (break ordering, turn an outage into dead-letter work, and are hand-built in this framework)</td><td>A stuck record delays its partition, surfaced by an alert</td></tr>
+  <tr><td>Job lock with MySQL <code>GET_LOCK</code></td><td>Released with the connection; no lease; no extra dependency under the jobs</td><td>Redisson lock (Redis outage halts the relay and expiry; leases can expire mid-run); ShedLock; Quartz clustering</td><td>The lock does not survive a MySQL failover (overlap is absorbed)</td></tr>
+  <tr><td>Kafka key <code>accreditation_id</code>, 6 partitions up front</td><td>Per-aggregate ordering, even spread, no repartitioning later</td><td><code>user_id</code> key (hot keys; no rule needs per-user ordering)</td><td>No ordering across one user's accreditations</td></tr>
+  <tr><td>Modular monolith; one MySQL server, two logical DBs</td><td>One thing to run and review; enforced boundaries; splitting is configuration</td><td>Microservices now; one schema</td><td>Shared CPU and heap until the split</td></tr>
+  <tr><td>Users: local copy from <code>user.events.v1</code>, seeded in dev</td><td>No synchronous dependency on the request path; unknown users rejected on POST (422)</td><td>REST call to the Users service; no user check at all</td><td>A newly registered user appears after a short delay</td></tr>
+  <tr><td>Named-fact events with snapshot fields, versioned JSON</td><td>Reads like an audit trail; consumers tolerate gaps; readable on the wire</td><td>One generic "status changed" event; Avro or Protobuf with a Schema Registry (production choice)</td><td>Compatibility enforced by convention and tests</td></tr>
+  <tr><td>Functional core in plain Java 21</td><td>Rules are pure and exhaustively testable; outcomes are values</td><td>Vavr; exceptions for business outcomes</td><td>Some ceremony when collecting validation errors</td></tr>
+  <tr><td>Micronaut Data JDBC with Flyway</td><td>Compile-time repositories; explicit SQL where it matters; maps to Spring Data JDBC</td><td>jOOQ with code generation (needs a database at build time); JPA</td><td>The important SQL lives in <code>@Query</code> strings, covered by integration tests</td></tr>
+  <tr><td>JWT built, off by default</td><td>The brief's requests run unchanged; security is one flag away and tested</td><td>Always on; none</td><td>A flag to keep honest</td></tr>
+  <tr><td>Pagination and rate limiting designed, not built</td><td>The brief asks for all statuses (a user has a handful); keyset pagination, not offset, if that changes. Rate limits belong at the gateway</td><td>Building both now</td><td>Described, not demonstrable</td></tr>
+  <tr><td>Blocking I/O on virtual threads</td><td>Simple, debuggable code at high concurrency; JDBC blocks anyway</td><td>Reactive (R2DBC, Reactor)</td><td>Avoid <code>synchronized</code> around blocking calls</td></tr>
+</table>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="assumptions">18. Assumptions and scope</h2>
+<div class="two-col">
+<div>
+<h3>Assumptions</h3>
+<ul>
+  <li>Allowed transitions: PENDING → CONFIRMED, FAILED or EXPIRED; CONFIRMED → EXPIRED or FAILED (revocation). The brief forbids only updates to FAILED; it does not forbid CONFIRMED → FAILED.</li>
+  <li>PENDING → EXPIRED is allowed ("or the accreditation status has expired").</li>
+  <li>EXPIRED is terminal: once evidence has expired, the user submits fresh evidence as a new accreditation with its own audit trail, rather than an old one being revived.</li>
+  <li>FAILED and EXPIRED cannot be changed (409). Re-sending the current status, in any state, is a no-op returning 200; it emits no event and does not restart the 30-day clock.</li>
+  <li>The 30-day clock runs from <code>updated_at</code>, which equals <code>created_at</code> on insert.</li>
+  <li>A user with a CONFIRMED or EXPIRED accreditation may submit another; only PENDING blocks.</li>
+  <li><code>user_id</code> is an opaque, case-sensitive token issued by the Users service.</li>
+  <li>POST for an unknown user returns 422; GET for a user with no accreditations returns an empty map.</li>
+  <li>Documents: PDF, PNG or JPEG by declared MIME type, at most 5 MB decoded. The brief's sample content is placeholder text (it decodes to a <code>tsconfig.json</code> fragment), so bytes are not sniffed.</li>
+  <li>Requests with unknown JSON fields are rejected.</li>
+  <li>The client <code>GET</code> is eventually consistent, normally within a second of an admin write.</li>
+</ul>
+</div>
+<div>
+<h3>Designed, not built (README next steps)</h3>
+<ul>
+  <li>Gateway rate limiting; keyset pagination; response cache</li>
+  <li>Automatic expiry of PENDING accreditations left unreviewed, so they cannot accumulate and block resubmission</li>
+  <li>Processed-request records written in the same transaction as each change, so any retried request returns exactly its original result</li>
+  <li>Read replicas, the service split and autoscaling (section 14)</li>
+  <li>Object storage with encryption and malware scanning; crypto-shredding</li>
+  <li>Schema Registry; CDC (Debezium) instead of the polling relay</li>
+  <li>OpenTelemetry tracing across Kafka (the request ID is propagated today)</li>
+  <li>Admin listing and search endpoints</li>
+</ul>
+</div>
+</div>
+
+</main>
+</body>
+</html>
