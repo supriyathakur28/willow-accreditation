@@ -38,4 +38,14 @@ class ArchitectureTest {
                 .because("the read model is built from events alone, so it can move to its own service")
                 .check(CLASSES);
     }
+
+    @Test
+    void platformKnowsNoBusinessModule() {
+        noClasses().that().resideInAPackage("com.supriya.accreditation.platform..")
+                .should().dependOnClassesThat().resideInAnyPackage("com.supriya.accreditation.domain..",
+                        "com.supriya.accreditation.command..", "com.supriya.accreditation.query..",
+                        "com.supriya.accreditation.users..", "com.supriya.accreditation.events..")
+                .because("platform code (errors, request IDs, transactions, idempotency) is shared plumbing")
+                .check(CLASSES);
+    }
 }

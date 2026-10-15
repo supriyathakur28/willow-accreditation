@@ -7,6 +7,7 @@ micronaut:
     max-request-size: 7MB
   serde:
     property-naming-strategy: SNAKE_CASE
+    write-dates-as-timestamps: false
   security:
     enabled: ${SECURITY_ENABLED:false}
   router:
@@ -46,6 +47,8 @@ datasources:
     maximum-pool-size: 10
     connection-timeout: 2000
     transaction-isolation: TRANSACTION_READ_COMMITTED
+    # A writer waiting on a row lock gives up after 3 s and the request gets 503 (default is 50 s)
+    connection-init-sql: SET SESSION innodb_lock_wait_timeout = 3
     data-source-properties:
       connectionTimeZone: UTC
       forceConnectionTimeZoneToSession: true
@@ -77,5 +80,6 @@ kafka:
     servers: ${KAFKA_BOOTSTRAP_SERVERS:`localhost:29092`}
 
 redis:
-  uri: ${REDIS_URI:`redis://localhost:6379`}
-  timeout: 100ms
+  # Redis is an early check only: after 100 ms the request goes ahead on the database guarantees.
+  # The timeout must be in the URI; Micronaut ignores redis.timeout when redis.uri is set.
+  uri: ${REDIS_URI:`redis://localhost:6379?timeout=100ms`}

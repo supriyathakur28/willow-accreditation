@@ -1,4 +1,4 @@
-package com.supriya.accreditation.platform;
+package com.supriya.accreditation.platform.persistence;
 
 import java.sql.SQLIntegrityConstraintViolationException;
 import java.util.Optional;

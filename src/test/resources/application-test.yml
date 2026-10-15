@@ -1,0 +1,7 @@
+# Random ports, so tests never clash with a running stack
+micronaut:
+  server:
+    port: -1
+endpoints:
+  all:
+    port: -1

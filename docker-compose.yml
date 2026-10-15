@@ -83,7 +83,7 @@ services:
       WRITE_DB_URL: jdbc:mysql://mysql:3306/accreditation_write
       READ_DB_URL: jdbc:mysql://mysql:3306/accreditation_read
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      REDIS_URI: redis://redis:6379
+      REDIS_URI: redis://redis:6379?timeout=100ms
       SECURITY_ENABLED: ${SECURITY_ENABLED:-false}
     ports:
       - "9999:9999"

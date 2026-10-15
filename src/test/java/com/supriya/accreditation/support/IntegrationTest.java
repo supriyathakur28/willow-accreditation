@@ -8,6 +8,14 @@ import org.testcontainers.mysql.MySQLContainer;
 import org.testcontainers.utility.DockerImageName;
 import org.testcontainers.utility.MountableFile;
 
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.sql.ResultSet;
+import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -40,6 +48,54 @@ public abstract class IntegrationTest implements TestPropertyProvider {
                 "datasources.write.url", mysql + "accreditation_write",
                 "datasources.read.url", mysql + "accreditation_read",
                 "kafka.bootstrap.servers", KAFKA.getBootstrapServers(),
-                "redis.uri", "redis://" + REDIS.getHost() + ":" + REDIS.getMappedPort(6379));
+                "redis.uri", "redis://" + REDIS.getHost() + ":" + REDIS.getMappedPort(6379) + "?timeout=100ms");
+    }
+
+    /** Empties every table in both databases, as root, without going through the application. */
+    protected static void resetDatabases() {
+        sql("accreditation_write", "SET FOREIGN_KEY_CHECKS = 0",
+                "TRUNCATE accreditation_documents", "TRUNCATE accreditations", "TRUNCATE outbox_events",
+                "TRUNCATE known_users");
+        sql("accreditation_read", "TRUNCATE accreditation_views", "TRUNCATE accreditation_status_history",
+                "TRUNCATE known_users");
+    }
+
+    /** What the users consumers do when a UserRegistered event arrives. */
+    protected static void registerUser(String userId) {
+        String insert = "INSERT INTO known_users (user_id, registered_at) VALUES ('" + userId + "', NOW(6))";
+        sql("accreditation_write", insert);
+        sql("accreditation_read", insert);
+    }
+
+    protected static void sql(String database, String... statements) {
+        String url = "jdbc:mysql://" + MYSQL.getHost() + ":" + MYSQL.getMappedPort(3306) + "/" + database;
+        try (Connection connection = DriverManager.getConnection(url, "root", MYSQL.getPassword());
+             Statement statement = connection.createStatement()) {
+            for (String sql : statements) {
+                statement.execute(sql);
+            }
+        } catch (SQLException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    /** Rows as column-label maps; handy for asserting on what the application wrote. */
+    protected static List<Map<String, Object>> rows(String database, String query) {
+        String url = "jdbc:mysql://" + MYSQL.getHost() + ":" + MYSQL.getMappedPort(3306) + "/" + database;
+        try (Connection connection = DriverManager.getConnection(url, "root", MYSQL.getPassword());
+             Statement statement = connection.createStatement();
+             ResultSet rs = statement.executeQuery(query)) {
+            List<Map<String, Object>> result = new ArrayList<>();
+            while (rs.next()) {
+                Map<String, Object> row = new LinkedHashMap<>();
+                for (int i = 1; i <= rs.getMetaData().getColumnCount(); i++) {
+                    row.put(rs.getMetaData().getColumnLabel(i), rs.getObject(i));
+                }
+                result.add(row);
+            }
+            return result;
+        } catch (SQLException e) {
+            throw new IllegalStateException(e);
+        }
     }
 }

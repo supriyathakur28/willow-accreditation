@@ -7,7 +7,7 @@ import com.supriya.accreditation.command.persistence.DocumentRow;
 import com.supriya.accreditation.command.persistence.OutboxEventRow;
 import com.supriya.accreditation.command.persistence.OutboxRepository;
 import com.supriya.accreditation.domain.AccreditationStatus;
-import com.supriya.accreditation.platform.DuplicateKeys;
+import com.supriya.accreditation.platform.persistence.DuplicateKeys;
 import com.supriya.accreditation.platform.UuidV7Generator;
 import com.supriya.accreditation.query.persistence.AccreditationViewRepository;
 import com.supriya.accreditation.query.persistence.AccreditationViewRow;
