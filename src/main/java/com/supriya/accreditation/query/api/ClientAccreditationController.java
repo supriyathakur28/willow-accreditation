@@ -2,7 +2,12 @@ package com.supriya.accreditation.query.api;
 
 import com.supriya.accreditation.query.persistence.AccreditationViewRepository;
 import com.supriya.accreditation.query.persistence.AccreditationViewRow;
+import com.supriya.accreditation.platform.security.Callers;
+import com.supriya.accreditation.platform.security.Roles;
+import com.supriya.accreditation.platform.web.ConcurrencyLimit;
 import com.supriya.accreditation.platform.web.PathIds;
+import io.micronaut.core.annotation.Nullable;
+import io.micronaut.security.annotation.Secured;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.PathVariable;
@@ -11,6 +16,7 @@ import io.micronaut.scheduling.annotation.ExecuteOn;
 import io.micronaut.transaction.TransactionOperations;
 import jakarta.inject.Named;
 
+import java.security.Principal;
 import java.sql.Connection;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -22,6 +28,8 @@ import java.util.Map;
  */
 @Controller
 @ExecuteOn(TaskExecutors.BLOCKING)
+@Secured({Roles.ADMIN, Roles.USER})
+@ConcurrencyLimit("client-reads")
 public class ClientAccreditationController {
 
     private final AccreditationViewRepository views;
@@ -35,8 +43,10 @@ public class ClientAccreditationController {
 
     /** A user with no accreditations, known or not, gets an empty map: the endpoint does not reveal who exists. */
     @Get("/user/{userId}/accreditation")
-    public UserAccreditationsResponse accreditations(@PathVariable String userId) {
+    public UserAccreditationsResponse accreditations(@PathVariable String userId,
+                                                     @Nullable Principal principal) {
         String validUserId = PathIds.userId(userId);
+        Callers.requireMayRead(principal, validUserId);
         List<AccreditationViewRow> rows = transactions.executeRead(
                 status -> views.findByUserIdOrderByAccreditationId(validUserId));
         Map<String, UserAccreditationsResponse.Entry> statuses = new LinkedHashMap<>();

@@ -9,7 +9,23 @@ micronaut:
     property-naming-strategy: SNAKE_CASE
     write-dates-as-timestamps: false
   security:
+    # Off by default so the brief's requests run unchanged; SECURITY_ENABLED=true ./run.sh turns it on
     enabled: ${SECURITY_ENABLED:false}
+    token:
+      jwt:
+        signatures:
+          secret:
+            generator:
+              # Development secret; production reads it from a secret store
+              secret: ${JWT_SECRET:`local-development-secret-change-me-0123456789abcdef`}
+      generator:
+        access-token:
+          expiration: 3600
+    intercept-url-map:
+      - pattern: /swagger/**
+        access: isAnonymous()
+      - pattern: /swagger-ui/**
+        access: isAnonymous()
   router:
     static-resources:
       swagger:
@@ -89,6 +105,16 @@ outbox:
 messaging:
   consumers:
     enabled: true
+
+expiry:
+  enabled: true
+  max-age: 30d
+  interval: 1h
+
+# In-flight requests per route group; beyond this, 503 at once rather than queuing for a connection
+concurrency-limits:
+  admin-writes: 50
+  client-reads: 200
 
 redis:
   # Redis is an early check only: after 100 ms the request goes ahead on the database guarantees.

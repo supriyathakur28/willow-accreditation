@@ -12,3 +12,5 @@ outbox:
 messaging:
   consumers:
     enabled: false
+expiry:
+  enabled: false

@@ -2,6 +2,7 @@ package com.supriya.accreditation.command;
 
 import com.supriya.accreditation.command.persistence.OutboxEventRow;
 import com.supriya.accreditation.command.persistence.OutboxRepository;
+import com.supriya.accreditation.platform.jobs.ScheduledJobLock;
 import com.supriya.accreditation.platform.messaging.Topics;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -60,7 +61,8 @@ public class OutboxRelay {
     }
 
     @Scheduled(fixedDelay = "${outbox.relay.interval:500ms}")
-    void publishPending() {
+    @ScheduledJobLock // one relay at a time keeps the publish order
+    public void publishPending() {
         try {
             int published;
             do {
@@ -110,7 +112,8 @@ public class OutboxRelay {
     }
 
     @Scheduled(fixedDelay = "${outbox.cleanup.interval:1h}", initialDelay = "1m")
-    void deleteOldPublished() {
+    @ScheduledJobLock
+    public void deleteOldPublished() {
         Instant cutoff = clock.instant().minus(KEEP_PUBLISHED);
         int deleted;
         do {

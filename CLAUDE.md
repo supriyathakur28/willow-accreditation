@@ -80,6 +80,8 @@ the design itself is in `docs/architecture.html`.
 - **Flyway Community** does not run undo (`U…`) scripts; roll back with a new forward migration.
 - **Serde omits empty collections and nulls** by default. Where the contract needs `{}`, `[]` or `null`, annotate the response record with `@JsonInclude(JsonInclude.Include.ALWAYS)`.
 - **Health indicators of optional dependencies** must be off (`redis.health.enabled: false`), or an outage of something the service can run without marks it DOWN and the orchestrator restarts a working app.
+- **Caller identity in controllers:** take `@Nullable Principal`, not `Authentication`: with security off, Micronaut binds a `Principal` as null but fails (500) trying to build an `Authentication`. Check `principal instanceof Authentication` for roles and claims.
+- **Raw connections** (for example a `GET_LOCK` that must not join a transaction): unwrap the `DataSource` with the injected `DataSourceResolver` bean; `DataSourceResolver.DEFAULT` does not unwrap Micronaut Data's contextual wrapper.
 - **Kafka:** the plain `kafka-clients` API is used on purpose. Micronaut Kafka's listener retries have an uncapped exponential backoff and its health check ties the service's health to the broker. The consumer loop is `platform/messaging/RetryingConsumer`.
 - **Testing Kafka:** test consumer logic against the Testcontainers broker, not `MockConsumer`, which drops records once polled and so cannot show a seek-back redelivering.
 

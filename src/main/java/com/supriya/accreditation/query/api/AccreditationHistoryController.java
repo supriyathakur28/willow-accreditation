@@ -2,7 +2,10 @@ package com.supriya.accreditation.query.api;
 
 import com.supriya.accreditation.query.persistence.StatusHistoryRepository;
 import com.supriya.accreditation.query.persistence.StatusHistoryRow;
+import com.supriya.accreditation.platform.security.Roles;
+import com.supriya.accreditation.platform.web.ConcurrencyLimit;
 import com.supriya.accreditation.platform.web.PathIds;
+import io.micronaut.security.annotation.Secured;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.PathVariable;
@@ -18,6 +21,8 @@ import java.util.UUID;
 /** Admin view of the audit trail of one accreditation, built from its events. */
 @Controller
 @ExecuteOn(TaskExecutors.BLOCKING)
+@Secured(Roles.ADMIN)
+@ConcurrencyLimit("client-reads")
 public class AccreditationHistoryController {
 
     private final StatusHistoryRepository history;

@@ -8,7 +8,10 @@ import com.supriya.accreditation.domain.AccreditationType;
 import com.supriya.accreditation.domain.Outcome;
 import com.supriya.accreditation.platform.Sha256;
 import com.supriya.accreditation.platform.idempotency.IdempotencyGuard;
+import com.supriya.accreditation.platform.security.Callers;
+import com.supriya.accreditation.platform.security.Roles;
 import com.supriya.accreditation.platform.web.ApiException;
+import com.supriya.accreditation.platform.web.ConcurrencyLimit;
 import com.supriya.accreditation.platform.web.ErrorCodes;
 import com.supriya.accreditation.platform.web.PathIds;
 import com.supriya.accreditation.platform.web.RequestIds;
@@ -25,6 +28,7 @@ import io.micronaut.http.annotation.Put;
 import io.micronaut.json.JsonMapper;
 import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
+import io.micronaut.security.annotation.Secured;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Pattern;
 
@@ -37,12 +41,13 @@ import java.util.UUID;
 /** Admin endpoints. Handlers block on JDBC and Redis, so they run on the blocking (virtual-thread) executor. */
 @Controller("/user/accreditation")
 @ExecuteOn(TaskExecutors.BLOCKING)
+@Secured(Roles.ADMIN)
+@ConcurrencyLimit("admin-writes")
 public class AdminAccreditationController {
 
     static final String IDEMPOTENCY_KEY = "Idempotency-Key";
     private static final String KEY_FORMAT = "[A-Za-z0-9_-]{1,64}";
     private static final java.util.regex.Pattern VERSION_TAG = java.util.regex.Pattern.compile("\"?(\\d{1,18})\"?");
-    private static final String ANONYMOUS = "anonymous";
 
     private final AccreditationCommandService commands;
     private final IdempotencyGuard idempotency;
@@ -59,7 +64,7 @@ public class AdminAccreditationController {
             @Body @Valid SubmitAccreditationRequest request,
             @Header(IDEMPOTENCY_KEY) @Nullable @Pattern(regexp = KEY_FORMAT, message = "must be 1-64 characters: letters, digits, '_' or '-'") String idempotencyKey,
             @Nullable Principal principal) {
-        String actor = actor(principal);
+        String actor = Callers.actor(principal);
         String requestSha256 = Sha256.hex(canonicalJson(request));
         if (idempotencyKey != null) {
             idempotency.check(actor, "submit", idempotencyKey, requestSha256);
@@ -87,7 +92,7 @@ public class AdminAccreditationController {
             @Nullable Principal principal) {
         UUID id = PathIds.accreditationId(accreditationId);
         OptionalLong expectedVersion = parseIfMatch(ifMatch);
-        String actor = actor(principal);
+        String actor = Callers.actor(principal);
         if (idempotencyKey != null) {
             idempotency.check(actor, "finalise:" + id, idempotencyKey, Sha256.hex(canonicalJson(request)));
         }
@@ -119,11 +124,6 @@ public class AdminAccreditationController {
                     "must be the version from the ETag, for example \"2\"");
         }
         return OptionalLong.of(Long.parseLong(matcher.group(1)));
-    }
-
-    // The audit actor comes only from the authenticated principal, never from the body or a header
-    private static String actor(@Nullable Principal principal) {
-        return principal == null ? ANONYMOUS : principal.getName();
     }
 
     // Re-serialising the parsed body ignores whitespace and field order, so equivalent retries hash the same

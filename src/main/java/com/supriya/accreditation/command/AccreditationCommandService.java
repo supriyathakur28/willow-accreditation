@@ -5,6 +5,7 @@ import com.supriya.accreditation.command.persistence.AccreditationRow;
 import com.supriya.accreditation.command.persistence.DocumentRepository;
 import com.supriya.accreditation.command.persistence.DocumentRow;
 import com.supriya.accreditation.domain.Accreditation;
+import com.supriya.accreditation.domain.AccreditationCommand.ExpireIfStale;
 import com.supriya.accreditation.domain.AccreditationCommand.Finalise;
 import com.supriya.accreditation.domain.AccreditationDecider;
 import com.supriya.accreditation.domain.AccreditationEvent.AccreditationSubmitted;
@@ -133,6 +134,34 @@ public class AccreditationCommandService {
                 case Decision.NoOp noOp -> new FinaliseResult.Applied(noOp.current());
                 case Decision.Rejected rejected -> new FinaliseResult.Rejected(rejected.reason(), rejected.current());
             };
+        });
+    }
+
+    public enum ExpiryOutcome { EXPIRED, SKIPPED }
+
+    /**
+     * Expires one accreditation if it is still eligible on the locked row. The job found it with a plain read, so an
+     * admin may have changed it since; the re-check below means nothing is decided on the scanned values.
+     */
+    public ExpiryOutcome expireIfStale(UUID accreditationId, Instant cutoff) {
+        return transactions.inTransaction(() -> {
+            Optional<AccreditationRow> locked = accreditations.findByIdForUpdate(accreditationId);
+            if (locked.isEmpty()) {
+                return ExpiryOutcome.SKIPPED;
+            }
+            AccreditationRow row = locked.get();
+            Accreditation current = row.toDomain();
+            Decision decision = AccreditationDecider.decide(current,
+                    new ExpireIfStale(cutoff, AccreditationDecider.EXPIRY_JOB_ACTOR), clock.instant(), ids.next());
+            if (!(decision instanceof Decision.Accepted accepted)) {
+                return ExpiryOutcome.SKIPPED;
+            }
+            Accreditation next = AccreditationDecider.evolve(current, accepted.event());
+            accreditations.update(row.withState(next));
+            outbox.append(accepted.event(), null);
+            log.info("Accreditation {} expired (confirmed at {}, version {})", accreditationId, current.updatedAt(),
+                    next.version());
+            return ExpiryOutcome.EXPIRED;
         });
     }
 }

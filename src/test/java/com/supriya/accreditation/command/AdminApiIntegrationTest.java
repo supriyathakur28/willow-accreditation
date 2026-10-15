@@ -382,6 +382,15 @@ class AdminApiIntegrationTest extends ApiIntegrationTest {
     class Envelope {
 
         @Test
+        void answersTheRequestIdOnSecurityAndRoutingErrorsToo() {
+            Reply unknownRoute = send(HttpRequest.GET("/nowhere").header("X-Request-Id", "trace-1"));
+
+            assertThat(unknownRoute.header("X-Request-Id")).isEqualTo("trace-1");
+            assertThat(unknownRoute.body()).containsEntry("request_id", "trace-1");
+        }
+
+
+        @Test
         void replacesAnUnsafeRequestId() {
             Reply reply = send(HttpRequest.POST("/user/accreditation", BRIEF_POST).header("X-Request-Id", "bad id <script>"));
 

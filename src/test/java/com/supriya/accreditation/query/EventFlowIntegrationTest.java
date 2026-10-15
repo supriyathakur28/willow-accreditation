@@ -1,10 +1,12 @@
 package com.supriya.accreditation.query;
 
+import com.supriya.accreditation.command.ExpiryJob;
 import com.supriya.accreditation.platform.messaging.Topics;
 import com.supriya.accreditation.support.ApiIntegrationTest;
 import io.micronaut.context.annotation.Property;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
+import jakarta.inject.Inject;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
@@ -35,7 +37,11 @@ import static org.awaitility.Awaitility.await;
 @Property(name = "outbox.relay.enabled", value = "true")
 @Property(name = "outbox.relay.interval", value = "100ms")
 @Property(name = "messaging.consumers.enabled", value = "true")
+@Property(name = "expiry.enabled", value = "true")
+@Property(name = "expiry.initial-delay", value = "1h") // run by the test, not the scheduler
 class EventFlowIntegrationTest extends ApiIntegrationTest {
+
+    @Inject ExpiryJob expiryJob;
 
     private static final Duration EVENTUALLY = Duration.ofSeconds(30);
     private static final KafkaProducer<String, String> PRODUCER = new KafkaProducer<>(Map.of(
@@ -79,6 +85,21 @@ class EventFlowIntegrationTest extends ApiIntegrationTest {
         assertThat(history.get(2)).containsEntry("from_status", "CONFIRMED").containsEntry("to_status", "FAILED")
                 .containsEntry("performed_by", "anonymous");
         assertThat(rows("accreditation_write", "SELECT * FROM outbox_events WHERE published_at IS NULL")).isEmpty();
+    }
+
+    @Test
+    void anExpiryByTheJobReachesTheClientAndTheHistory() {
+        String id = idOf(send(HttpRequest.POST("/user/accreditation", BRIEF_POST)));
+        send(put(id, "CONFIRMED"));
+        // Thirty-one days pass
+        sql("accreditation_write", "UPDATE accreditations SET updated_at = NOW(6) - INTERVAL 31 DAY");
+
+        assertThat(expiryJob.expireStaleConfirmations().expired()).isEqualTo(1);
+
+        await().atMost(EVENTUALLY).until(() -> statusOf(id), "EXPIRED"::equals);
+        List<Map<String, Object>> history = await().atMost(EVENTUALLY).until(() -> historyOf(id), h -> h.size() == 3);
+        assertThat(history.get(2)).containsEntry("event_type", "AccreditationExpired")
+                .containsEntry("from_status", "CONFIRMED").containsEntry("performed_by", "system:expiry-job");
     }
 
     @Test
