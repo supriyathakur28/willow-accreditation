@@ -6,6 +6,7 @@ import com.tngtech.archunit.core.importer.ImportOption;
 import org.junit.jupiter.api.Test;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
 /** Module boundaries from the design document, enforced on every build. */
 class ArchitectureTest {
@@ -19,6 +20,22 @@ class ArchitectureTest {
         classes().that().resideInAPackage("..domain..")
                 .should().onlyDependOnClassesThat().resideInAnyPackage("..domain..", "java..")
                 .because("the business rules are pure functions with no framework, database or messaging code")
+                .check(CLASSES);
+    }
+
+    @Test
+    void writeSideDoesNotReachIntoTheReadSide() {
+        noClasses().that().resideInAPackage("com.supriya.accreditation.command..")
+                .should().dependOnClassesThat().resideInAPackage("com.supriya.accreditation.query..")
+                .because("the admin write path never reads the projection; it decides on the locked row only")
+                .check(CLASSES);
+    }
+
+    @Test
+    void readSideDoesNotReachIntoTheWriteSide() {
+        noClasses().that().resideInAPackage("com.supriya.accreditation.query..")
+                .should().dependOnClassesThat().resideInAPackage("com.supriya.accreditation.command..")
+                .because("the read model is built from events alone, so it can move to its own service")
                 .check(CLASSES);
     }
 }
