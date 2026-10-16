@@ -1,0 +1,136 @@
+### Every request, for the IntelliJ HTTP client (VS Code: REST Client). Start the stack first: ./run.sh
+@base = http://localhost:9999
+@userId = g8NlYJnk7zK9BlB1J2Ebjs0AkhCTpE1V
+
+### 1. Submit: the brief's request. Saves the new ID for the requests below.
+POST {{base}}/user/accreditation
+Content-Type: application/json
+Idempotency-Key: demo-1
+
+{
+  "user_id": "{{userId}}",
+  "accreditation_type": "BY_INCOME",
+  "document": {
+    "name": "2018.pdf",
+    "mime_type": "application/pdf",
+    "content": "ICAiQC8qIjogWyJzcmMvKiJdCiAgICB9CiAgfQp9Cg=="
+  }
+}
+
+> {% client.global.set("accreditationId", response.body.accreditation_id); %}
+
+### 2. Client view (eventually consistent: normally within a second)
+GET {{base}}/user/{{userId}}/accreditation
+
+### 3. Confirm. The response's ETag is the new version.
+PUT {{base}}/user/accreditation/{{accreditationId}}
+Content-Type: application/json
+
+{ "outcome": "CONFIRMED" }
+
+### 4. Revoke, but only if nobody changed it since version 2 (otherwise 412)
+PUT {{base}}/user/accreditation/{{accreditationId}}
+Content-Type: application/json
+If-Match: "2"
+
+{ "outcome": "FAILED" }
+
+### 5. A FAILED accreditation cannot change: 409 TRANSITION_NOT_ALLOWED
+PUT {{base}}/user/accreditation/{{accreditationId}}
+Content-Type: application/json
+
+{ "outcome": "CONFIRMED" }
+
+### 6. Audit history, in version order
+GET {{base}}/user/accreditation/{{accreditationId}}/history
+
+### 7. Retrying request 1 with the same key returns the original ID (201)
+POST {{base}}/user/accreditation
+Content-Type: application/json
+Idempotency-Key: demo-1
+
+{
+  "user_id": "{{userId}}",
+  "accreditation_type": "BY_INCOME",
+  "document": {
+    "name": "2018.pdf",
+    "mime_type": "application/pdf",
+    "content": "ICAiQC8qIjogWyJzcmMvKiJdCiAgICB9CiAgfQp9Cg=="
+  }
+}
+
+### 8. The same key with a different body: 422 IDEMPOTENCY_KEY_REUSED
+POST {{base}}/user/accreditation
+Content-Type: application/json
+Idempotency-Key: demo-1
+
+{
+  "user_id": "{{userId}}",
+  "accreditation_type": "BY_NET_WORTH",
+  "document": {
+    "name": "2018.pdf",
+    "mime_type": "application/pdf",
+    "content": "ICAiQC8qIjogWyJzcmMvKiJdCiAgICB9CiAgfQp9Cg=="
+  }
+}
+
+### 9. Validation: one 400 listing every invalid field
+POST {{base}}/user/accreditation
+Content-Type: application/json
+
+{
+  "user_id": "has spaces",
+  "accreditation_type": "BY_LUCK",
+  "document": { "name": "", "mime_type": "text/html", "content": "not base64!" }
+}
+
+### 10. A user the Users service never registered: 422 USER_NOT_FOUND
+POST {{base}}/user/accreditation
+Content-Type: application/json
+
+{
+  "user_id": "nobody",
+  "accreditation_type": "BY_NET_WORTH",
+  "document": { "name": "statement.pdf", "mime_type": "application/pdf", "content": "QUJD" }
+}
+
+
+### --- With security on: SECURITY_ENABLED=true ./run.sh ---
+
+### 11. Admin token (local stand-in for the authentication service's login)
+POST {{base}}/auth/token
+Content-Type: application/json
+
+{ "role": "ADMIN", "subject": "admin-7" }
+
+> {% client.global.set("adminToken", response.body.access_token); %}
+
+### 12. User token, which may read only this user's accreditations
+POST {{base}}/auth/token
+Content-Type: application/json
+
+{ "role": "USER", "user_id": "{{userId}}" }
+
+> {% client.global.set("userToken", response.body.access_token); %}
+
+### 13. Submit as an admin (created_by and performed_by become "admin-7")
+POST {{base}}/user/accreditation
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "user_id": "kq3rj7kY14mADZsVQ0qD7WjsvbS2h26C",
+  "accreditation_type": "BY_NET_WORTH",
+  "document": { "name": "statement.pdf", "mime_type": "application/pdf", "content": "QUJD" }
+}
+
+### 14. The user reads their own accreditations (200); another user's would be 403
+GET {{base}}/user/{{userId}}/accreditation
+Authorization: Bearer {{userToken}}
+
+### 15. A user token on an admin endpoint: 403
+PUT {{base}}/user/accreditation/{{accreditationId}}
+Content-Type: application/json
+Authorization: Bearer {{userToken}}
+
+{ "outcome": "CONFIRMED" }
