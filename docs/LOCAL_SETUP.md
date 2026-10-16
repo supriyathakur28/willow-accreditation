@@ -56,7 +56,9 @@ java -version                         # 21
    Then run or debug `Application`. It reads `localhost` ports by default; add `SECURITY_ENABLED=true` to the run
    configuration's environment to turn security on.
 4. `requests.http` runs from the editor gutter.
-5. Help → Change Memory Settings → 2048 MB is enough for this project.
+5. **"No tests were found"** when running a test: reload the Maven project (Maven tool window → Reload All Maven
+   Projects) so IntelliJ picks up the JUnit engine declared in `pom.xml`, then run the test again.
+6. Help → Change Memory Settings → 2048 MB is enough for this project.
 
 ## 5. Watch the events
 

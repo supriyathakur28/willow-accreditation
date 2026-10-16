@@ -83,6 +83,7 @@ the design itself is in `docs/architecture.html`.
 - **Caller identity in controllers:** take `@Nullable Principal`, not `Authentication`: with security off, Micronaut binds a `Principal` as null but fails (500) trying to build an `Authentication`. Check `principal instanceof Authentication` for roles and claims.
 - **Raw connections** (for example a `GET_LOCK` that must not join a transaction): unwrap the `DataSource` with the injected `DataSourceResolver` bean; `DataSourceResolver.DEFAULT` does not unwrap Micronaut Data's contextual wrapper.
 - **Kafka:** the plain `kafka-clients` API is used on purpose. Micronaut Kafka's listener retries have an uncapped exponential backoff and its health check ties the service's health to the broker. The consumer loop is `platform/messaging/RetryingConsumer`.
+- **JUnit in the IDE:** declare `junit-jupiter-engine` and `junit-platform-launcher` as test dependencies. Maven Surefire adds them by itself, so `./mvnw verify` works without them, but IntelliJ falls back to its bundled copies and reports "No tests were found" when their version differs.
 - **Testing Kafka:** test consumer logic against the Testcontainers broker, not `MockConsumer`, which drops records once polled and so cannot show a seek-back redelivering.
 
 ## Git
