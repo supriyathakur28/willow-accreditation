@@ -64,17 +64,3 @@ java -version                         # 21
 docker compose exec kafka /opt/kafka/bin/kafka-console-consumer.sh \
   --bootstrap-server localhost:9092 --topic accreditation.events.v1 --from-beginning --property print.key=true
 ```
-
-## 6. Publish the repository
-
-The project arrives as a git bundle with its full history. To put it on GitHub:
-
-```bash
-git clone willow-accreditation.bundle willow-accreditation
-cd willow-accreditation
-git remote remove origin                       # the bundle itself
-git remote add origin git@github.com:<you>/willow-accreditation.git
-git push -u origin main
-```
-
-Then check that the **CI** workflow (`.github/workflows/ci.yml`) is green on GitHub; it runs `./mvnw verify`.

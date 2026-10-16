@@ -23,6 +23,7 @@ Requirements: Docker with Compose v2. No JDK needed to run; the image is built i
 `requests.http` has every request, ready for the IntelliJ or VS Code HTTP client. Swagger UI is at
 http://localhost:9999/swagger-ui/index.html, and health and metrics are on the management port, 9998.
 The stack is memory-capped at about 2.3 GB (it uses about 1 GB idle).
+Running on a Mac, or from IntelliJ: see [`docs/LOCAL_SETUP.md`](docs/LOCAL_SETUP.md).
 
 Compose creates the Kafka topics and publishes four sample users, including the brief's
 `g8NlYJnk7zK9BlB1J2Ebjs0AkhCTpE1V`, standing in for the Users service.
