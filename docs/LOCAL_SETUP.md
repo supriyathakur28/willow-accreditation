@@ -42,10 +42,19 @@ java -version                         # 21
 ## 4. IntelliJ IDEA
 
 1. Open the folder as a Maven project; set the project SDK to 21.
-2. Settings → Build → Compiler → Annotation Processors → **Enable annotation processing**. Micronaut generates
-   its beans, repositories and serialisers at compile time; without this, the app starts with missing beans.
-3. Run `Application` with the environment variables of your choice, against a stack started by
-   `docker compose up -d mysql kafka kafka-init redis`. It reads `localhost` ports by default.
+2. Settings → Build Tools → Maven → Runner → **Delegate IDE build/run actions to Maven** (or Settings → Compiler →
+   Annotation Processors → **Enable annotation processing**). Micronaut generates its beans, repositories and
+   serialisers at compile time; without one of the two, the app starts with missing beans.
+3. Start the infrastructure, and let `kafka-init` finish before starting the app (a consumer that starts before its
+   topic exists only notices the topic after several minutes):
+
+   ```bash
+   docker compose up -d --wait mysql redis kafka
+   docker compose up kafka-init      # creates the topics and sample users, then exits
+   ```
+
+   Then run or debug `Application`. It reads `localhost` ports by default; add `SECURITY_ENABLED=true` to the run
+   configuration's environment to turn security on.
 4. `requests.http` runs from the editor gutter.
 5. Help → Change Memory Settings → 2048 MB is enough for this project.
 
