@@ -177,8 +177,40 @@ class EventFlowIntegrationTest extends ApiIntegrationTest {
 
         await().atMost(EVENTUALLY).until(() ->
                 send(HttpRequest.POST("/user/accreditation", BRIEF_POST.replace(USER, newUser))).status() == 201);
-        await().atMost(EVENTUALLY).until(() -> !rows("accreditation_read",
-                "SELECT * FROM known_users WHERE user_id = '" + newUser + "'").isEmpty());
+        assertThat(rows("accreditation_write", "SELECT registered_at FROM known_users WHERE user_id = '" + newUser + "'"))
+                .singleElement().satisfies(row -> assertThat(row.get("registered_at").toString()).startsWith("2026-10-01"));
+    }
+
+    @Test
+    void anyRecordForAUserMeansTheUserExists() {
+        // On a compacted topic the latest record may be of any type: here a snapshot with no registration time
+        String newUser = "u" + UUID.randomUUID().toString().replace("-", "");
+        PRODUCER.send(new ProducerRecord<>(Topics.USER_EVENTS, newUser, """
+                {"event_type": "UserProfileUpdated", "user_id": "%s", "status": "ACTIVE"}""".formatted(newUser)));
+        PRODUCER.flush();
+
+        await().atMost(EVENTUALLY).until(() ->
+                send(HttpRequest.POST("/user/accreditation", BRIEF_POST.replace(USER, newUser))).status() == 201);
+    }
+
+    @Test
+    void aTombstoneIsAcceptedAndAMismatchedKeyIsPoison() {
+        String deleted = "u" + UUID.randomUUID().toString().replace("-", "");
+        String mismatched = "u" + UUID.randomUUID().toString().replace("-", "");
+        String next = "u" + UUID.randomUUID().toString().replace("-", "");
+        PRODUCER.send(new ProducerRecord<>(Topics.USER_EVENTS, deleted, null));
+        PRODUCER.send(new ProducerRecord<>(Topics.USER_EVENTS, mismatched, "{\"user_id\": \"someone-else\"}"));
+        PRODUCER.send(new ProducerRecord<>(Topics.USER_EVENTS, next, "{\"user_id\": \"%s\"}".formatted(next)));
+        PRODUCER.flush();
+
+        // The stream moves past both: a user published later on the same topic still arrives
+        await().atMost(EVENTUALLY).until(() ->
+                send(HttpRequest.POST("/user/accreditation", BRIEF_POST.replace(USER, next))).status() == 201);
+        List<ConsumerRecord<String, String>> dead = await().atMost(EVENTUALLY).until(
+                () -> deadLetters(Topics.deadLetter(Topics.USER_EVENTS, "known-users"), "someone-else"), d -> !d.isEmpty());
+        assertThat(header(dead.getFirst(), "dlt.error")).contains("does not match its user_id");
+        assertThat(rows("accreditation_write", "SELECT * FROM known_users WHERE user_id IN ('" + deleted + "', '"
+                + mismatched + "')")).isEmpty();
     }
 
     @Test

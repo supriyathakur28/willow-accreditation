@@ -23,11 +23,10 @@ create accreditation.events.v1.accreditation-history.dlt 1 "retention.ms=$THIRTY
 
 # User events: compacted, so the latest record per user is always available
 create user.events.v1 3 "cleanup.policy=compact"
-create user.events.v1.users-write-copy.dlt 1 "retention.ms=$THIRTY_DAYS"
-create user.events.v1.users-read-copy.dlt 1 "retention.ms=$THIRTY_DAYS"
+create user.events.v1.known-users.dlt 1 "retention.ms=$THIRTY_DAYS"
 
 # Seed users (key|value). Re-running is harmless: the topic is compacted and
-# the consumers ignore a user they already know.
+# the consumer ignores a user it already knows.
 NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 seed() {
   local user_id=$1

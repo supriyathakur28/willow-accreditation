@@ -70,15 +70,12 @@ public abstract class IntegrationTest implements TestPropertyProvider {
         sql("accreditation_write", "SET FOREIGN_KEY_CHECKS = 0",
                 "TRUNCATE accreditation_documents", "TRUNCATE accreditations", "TRUNCATE outbox_events",
                 "TRUNCATE known_users");
-        sql("accreditation_read", "TRUNCATE accreditation_views", "TRUNCATE accreditation_status_history",
-                "TRUNCATE known_users");
+        sql("accreditation_read", "TRUNCATE accreditation_views", "TRUNCATE accreditation_status_history");
     }
 
-    /** What the users consumers do when a UserRegistered event arrives. */
+    /** What the users consumer does when a record for a new user arrives. */
     protected static void registerUser(String userId) {
-        String insert = "INSERT INTO known_users (user_id, registered_at) VALUES ('" + userId + "', NOW(6))";
-        sql("accreditation_write", insert);
-        sql("accreditation_read", insert);
+        sql("accreditation_write", "INSERT INTO known_users (user_id, registered_at) VALUES ('" + userId + "', NOW(6))");
     }
 
     protected static void sql(String database, String... statements) {

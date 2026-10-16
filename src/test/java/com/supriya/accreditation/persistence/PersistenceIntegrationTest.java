@@ -15,8 +15,7 @@ import com.supriya.accreditation.query.persistence.StatusHistoryRepository;
 import com.supriya.accreditation.query.persistence.StatusHistoryRow;
 import com.supriya.accreditation.support.IntegrationTest;
 import com.supriya.accreditation.users.persistence.KnownUserRow;
-import com.supriya.accreditation.users.persistence.ReadKnownUserRepository;
-import com.supriya.accreditation.users.persistence.WriteKnownUserRepository;
+import com.supriya.accreditation.users.persistence.KnownUserRepository;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import io.micronaut.transaction.TransactionOperations;
 import jakarta.inject.Inject;
@@ -57,8 +56,7 @@ class PersistenceIntegrationTest extends IntegrationTest {
     @Inject OutboxRepository outbox;
     @Inject AccreditationViewRepository views;
     @Inject StatusHistoryRepository history;
-    @Inject WriteKnownUserRepository writeUsers;
-    @Inject ReadKnownUserRepository readUsers;
+    @Inject KnownUserRepository knownUsers;
     @Inject UuidV7Generator ids;
 
     @BeforeEach
@@ -67,7 +65,7 @@ class PersistenceIntegrationTest extends IntegrationTest {
                 "DELETE FROM accreditation_documents", "DELETE FROM accreditations",
                 "DELETE FROM outbox_events", "DELETE FROM known_users"));
         readTx.executeWrite(s -> execute(s.getConnection(),
-                "DELETE FROM accreditation_views", "DELETE FROM accreditation_status_history", "DELETE FROM known_users"));
+                "DELETE FROM accreditation_views", "DELETE FROM accreditation_status_history"));
     }
 
     @Nested
@@ -337,21 +335,20 @@ class PersistenceIntegrationTest extends IntegrationTest {
     class KnownUsers {
 
         @Test
-        void insertsEachUserOnceOnBothSides() {
-            writeTx.executeWrite(s -> { writeUsers.insertIfAbsent(USER, T0); return null; });
-            writeTx.executeWrite(s -> { writeUsers.insertIfAbsent(USER, T0.plusSeconds(5)); return null; });
-            readTx.executeWrite(s -> { readUsers.insertIfAbsent(USER, T0); return null; });
+        void insertsEachUserOnceAndKeepsTheFirstRegistration() {
+            writeTx.executeWrite(s -> { knownUsers.insertIfAbsent(USER, T0); return null; });
+            writeTx.executeWrite(s -> { knownUsers.insertIfAbsent(USER, T0.plusSeconds(5)); return null; });
 
-            assertThat(inWriteDb(() -> writeUsers.findById(USER))).map(KnownUserRow::registeredAt).contains(T0);
-            assertThat(inReadDb(() -> readUsers.existsById(USER))).isTrue();
+            assertThat(inWriteDb(() -> knownUsers.findById(USER))).map(KnownUserRow::registeredAt).contains(T0);
+            assertThat(inWriteDb(() -> knownUsers.existsById(USER))).isTrue();
         }
 
         @Test
         void checksExistenceUnderAShareLockAndCaseSensitively() {
-            writeTx.executeWrite(s -> { writeUsers.insertIfAbsent(USER, T0); return null; });
+            writeTx.executeWrite(s -> { knownUsers.insertIfAbsent(USER, T0); return null; });
 
-            assertThat(inWriteDb(() -> writeUsers.existsForShare(USER))).isTrue();
-            assertThat(inWriteDb(() -> writeUsers.existsForShare(USER.toLowerCase()))).isFalse();
+            assertThat(inWriteDb(() -> knownUsers.existsForShare(USER))).isTrue();
+            assertThat(inWriteDb(() -> knownUsers.existsForShare(USER.toLowerCase()))).isFalse();
         }
     }
 

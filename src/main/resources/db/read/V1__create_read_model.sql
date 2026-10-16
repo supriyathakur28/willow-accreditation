@@ -32,11 +32,3 @@ CREATE TABLE accreditation_status_history (
     -- Redelivered events are recognised by their ID and ignored
     UNIQUE KEY uq_accreditation_status_history_event_id (event_id)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
-
--- Read-side copy of the users known to the Users service, fed from user.events.v1
-CREATE TABLE known_users (
-    user_id       VARCHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
-    registered_at DATETIME(6) NOT NULL,
-
-    PRIMARY KEY (user_id)
-) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;

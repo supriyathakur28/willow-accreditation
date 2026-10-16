@@ -95,8 +95,9 @@ on PUT rejects a decision made on a stale view (412). Every response carries `X-
   snapshot, the previous status and a timestamp. The topic is kept forever as the audit record.
 - **Expiry job.** Hourly, it expires CONFIRMED accreditations not updated for 30 days through the same lock-and-decide
   path as an admin PUT. MySQL `GET_LOCK` makes each scheduled job run on one instance at a time.
-- **Users.** Users belong to another service; both models keep a local copy fed by `user.events.v1`, so POST can
-  reject unknown users without a remote call.
+- **Users.** Users belong to another service. The write model keeps a local copy fed by `user.events.v1`, so POST
+  can reject unknown users without a remote call. The topic is compacted, so any record for a user means the user
+  exists and a tombstone means they were deleted.
 
 **Patterns.** CQRS; transactional outbox; event-carried state transfer; idempotent consumers; functional core and
 imperative shell (business rules are pure functions over immutable records, and outcomes are values, not
@@ -174,7 +175,7 @@ src/main/java/com/supriya/accreditation/
   domain/     pure business rules: state machine, decision function, events (no framework code)
   command/    admin API, command service, outbox relay, expiry job, write-model repositories
   query/      client and history APIs, projection and history consumers, read-model repositories
-  users/      consumers that keep the local copies of known users
+  users/      consumer that keeps the local copy of known users
   events/     the event wire format shared by both sides
   platform/   errors, request IDs, transactions, idempotency, job locks, security, consumer loop
 src/main/resources/db/{write,read}/   Flyway migrations, one folder per logical database

@@ -15,7 +15,7 @@ import com.supriya.accreditation.domain.Outcome;
 import com.supriya.accreditation.platform.UuidV7Generator;
 import com.supriya.accreditation.platform.persistence.DuplicateKeys;
 import com.supriya.accreditation.platform.persistence.WriteTransactions;
-import com.supriya.accreditation.users.persistence.WriteKnownUserRepository;
+import com.supriya.accreditation.users.persistence.KnownUserRepository;
 import io.micronaut.core.annotation.Nullable;
 import jakarta.inject.Singleton;
 import org.slf4j.Logger;
@@ -39,13 +39,13 @@ public class AccreditationCommandService {
     private final WriteTransactions transactions;
     private final AccreditationRepository accreditations;
     private final DocumentRepository documents;
-    private final WriteKnownUserRepository knownUsers;
+    private final KnownUserRepository knownUsers;
     private final OutboxWriter outbox;
     private final UuidV7Generator ids;
     private final Clock clock;
 
     AccreditationCommandService(WriteTransactions transactions, AccreditationRepository accreditations,
-                                DocumentRepository documents, WriteKnownUserRepository knownUsers,
+                                DocumentRepository documents, KnownUserRepository knownUsers,
                                 OutboxWriter outbox, UuidV7Generator ids, Clock clock) {
         this.transactions = transactions;
         this.accreditations = accreditations;

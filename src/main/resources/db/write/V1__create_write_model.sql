@@ -63,7 +63,7 @@ CREATE TABLE outbox_events (
     KEY ix_outbox_events_published_at_id (published_at, id)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
 
--- Local copy of the users known to the Users service, fed from user.events.v1
+-- Local copy of the users known to the Users service, fed from user.events.v1; POST checks it
 CREATE TABLE known_users (
     user_id       VARCHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
     registered_at DATETIME(6) NOT NULL,

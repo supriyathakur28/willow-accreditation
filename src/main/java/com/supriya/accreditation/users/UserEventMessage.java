@@ -5,10 +5,10 @@ import io.micronaut.serde.annotation.Serdeable;
 
 import java.time.Instant;
 
-/** An event from the Users service on user.events.v1. Only UserRegistered matters here; others are ignored. */
+/**
+ * A record on user.events.v1, owned by the Users service. Only the fields this service needs are read; any others
+ * (and any event type) are accepted, because the topic is compacted and the latest record per user may be of any kind.
+ */
 @Serdeable
-record UserEventMessage(@Nullable String eventId, @Nullable String eventType, int schemaVersion,
-                        @Nullable String userId, @Nullable Instant registeredAt) {
-
-    static final String USER_REGISTERED = "UserRegistered";
+record UserEventMessage(@Nullable String userId, @Nullable Instant registeredAt) {
 }

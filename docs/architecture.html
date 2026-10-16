@@ -295,7 +295,7 @@
   <line x1="900" y1="505" x2="940" y2="505" class="ea"/>
   <text x="948" y="509" class="ts">asynchronous, after commit</text>
 </svg>
-<figcaption><strong>Figure 1.</strong> One deployable on port 9999 with two paths. The admin path (top) is synchronous up to one MySQL transaction, highlighted, that changes the state <em>and</em> records the event. Everything after the commit (dashed) is asynchronous: the relay publishes to Kafka, and consumers build the client read model that the client path (bottom) serves. Kafka is never on the admin request path, and Redis is never on the client path or under the jobs. Users are owned by another service; both models keep a local copy fed by <code>user.events.v1</code>, which compose seeds with sample users.</figcaption>
+<figcaption><strong>Figure 1.</strong> One deployable on port 9999 with two paths. The admin path (top) is synchronous up to one MySQL transaction, highlighted, that changes the state <em>and</em> records the event. Everything after the commit (dashed) is asynchronous: the relay publishes to Kafka, and consumers build the client read model that the client path (bottom) serves. Kafka is never on the admin request path, and Redis is never on the client path or under the jobs. Users are owned by another service; the write model keeps a local copy fed by <code>user.events.v1</code>, which compose seeds with sample users.</figcaption>
 </figure>
 
 <h3>One MySQL server, two logical databases</h3>
@@ -308,7 +308,7 @@
   <tr><td><code>domain</code></td><td>The functional core: immutable records, sealed types and pure functions. No framework imports, no I/O.</td><td>nothing</td></tr>
   <tr><td><code>command</code></td><td>Admin API, command service (the shell around <code>decide</code>), write repositories, outbox writer and relay, expiry job</td><td>domain, platform</td></tr>
   <tr><td><code>query</code></td><td>Client API, history API, projection and history consumers, read repositories</td><td>domain (event types only), platform</td></tr>
-  <tr><td><code>users</code></td><td>Consumers of <code>user.events.v1</code> that maintain the <code>known_users</code> copies</td><td>platform</td></tr>
+  <tr><td><code>users</code></td><td>Consumer of <code>user.events.v1</code> that maintains <code>known_users</code> in the write model, which POST checks</td><td>platform</td></tr>
   <tr><td><code>platform</code></td><td>Error model, request-ID filter, idempotency, job lock, security, clock, UUIDv7 generator</td><td>nothing in the business modules</td></tr>
 </table>
 </div>
@@ -712,7 +712,6 @@ static Accreditation evolve(Accreditation state, AccreditationEvent e)</code></p
   <tr><th>Table</th><th>Key columns and constraints</th></tr>
   <tr><td><code>accreditation_views</code></td><td>PK (<code>user_id</code>, <code>accreditation_id</code>) · UNIQUE <code>accreditation_id</code> · <code>accreditation_type</code> · <code>status</code> · <code>version</code> · <code>submitted_at</code> (set on insert only) · <code>updated_at</code></td></tr>
   <tr><td><code>accreditation_status_history</code></td><td>PK (<code>accreditation_id</code>, <code>version</code>) · UNIQUE <code>event_id</code> · <code>event_type</code> · <code>from_status</code>, <code>to_status</code> · <code>performed_by</code> · <code>occurred_at</code></td></tr>
-  <tr><td><code>known_users</code></td><td>PK <code>user_id</code> (read-side copy)</td></tr>
 </table>
 </div>
 </div>
@@ -789,7 +788,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?);
 </table>
 </div>
 <p><strong>Partition counts.</strong> Throughput needs one partition (a few events per second at peak). The counts are sized for consumer parallelism, since a group has at most one active consumer per partition, and so they never need to grow: adding partitions to a keyed topic moves keys and breaks per-key ordering during the change. Two per broker on a three-broker production cluster gives 6; user events are rarer, so 3.</p>
-<p>Automatic topic creation is off; a compose init container creates the topics and publishes <code>UserRegistered</code> for the brief's sample user and a few others. Consumer groups: <code>accreditation-projection</code>, <code>accreditation-history</code>, <code>users-write-copy</code>, <code>users-read-copy</code>.</p>
+<p>Automatic topic creation is off; a compose init container creates the topics and publishes <code>UserRegistered</code> for the brief's sample user and a few others. Consumer groups: <code>accreditation-projection</code>, <code>accreditation-history</code>, <code>known-users</code>. The users topic is compacted, so only the latest record per user is guaranteed: the <code>known-users</code> consumer treats any record as "this user exists" and a tombstone as a deletion, never depending on a particular earlier event type.</p>
 
 <!-- ============================================================ -->
 <h2 id="jobs">11. Background jobs and threading</h2>
@@ -1000,7 +999,7 @@ curl -s localhost:9999/user/g8NlYJnk7zK9BlB1J2Ebjs0AkhCTpE1V/accreditation
   <tr><td>Job lock with MySQL <code>GET_LOCK</code></td><td>Released with the connection; no lease; no extra dependency under the jobs</td><td>Redisson lock (Redis outage halts the relay and expiry; leases can expire mid-run); ShedLock; Quartz clustering</td><td>The lock does not survive a MySQL failover (overlap is absorbed)</td></tr>
   <tr><td>Kafka key <code>accreditation_id</code>, 6 partitions up front</td><td>Per-aggregate ordering, even spread, no repartitioning later</td><td><code>user_id</code> key (hot keys; no rule needs per-user ordering)</td><td>No ordering across one user's accreditations</td></tr>
   <tr><td>Modular monolith; one MySQL server, two logical DBs</td><td>One thing to run and review; enforced boundaries; splitting is configuration</td><td>Microservices now; one schema</td><td>Shared CPU and heap until the split</td></tr>
-  <tr><td>Users: local copy from <code>user.events.v1</code>, seeded in dev</td><td>No synchronous dependency on the request path; unknown users rejected on POST (422)</td><td>REST call to the Users service; no user check at all</td><td>A newly registered user appears after a short delay</td></tr>
+  <tr><td>Users: local copy in the write model from <code>user.events.v1</code>, seeded in dev</td><td>No synchronous dependency on the request path; unknown users rejected on POST (422)</td><td>REST call to the Users service; no user check at all</td><td>A newly registered user appears after a short delay</td></tr>
   <tr><td>Named-fact events with snapshot fields, versioned JSON</td><td>Reads like an audit trail; consumers tolerate gaps; readable on the wire</td><td>One generic "status changed" event; Avro or Protobuf with a Schema Registry (production choice)</td><td>Compatibility enforced by convention and tests</td></tr>
   <tr><td>Functional core in plain Java 21</td><td>Rules are pure and exhaustively testable; outcomes are values</td><td>Vavr; exceptions for business outcomes</td><td>Some ceremony when collecting validation errors</td></tr>
   <tr><td>Micronaut Data JDBC with Flyway</td><td>Compile-time repositories; explicit SQL where it matters; maps to Spring Data JDBC</td><td>jOOQ with code generation (needs a database at build time); JPA</td><td>The important SQL lives in <code>@Query</code> strings, covered by integration tests</td></tr>
