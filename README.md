@@ -16,6 +16,7 @@ Requirements: Docker with Compose v2. No JDK needed to run; the image is built i
 ```bash
 ./run.sh            # build and start everything; returns when the service is healthy on http://localhost:9999
 ./smoke.sh          # replays the brief's requests and checks every response
+./run.sh infra      # only MySQL, Kafka and Redis, to run the service from an IDE
 ./run.sh logs       # follow the service logs
 ./run.sh down       # stop (data kept)    ./run.sh clean   # stop and delete all data
 ```

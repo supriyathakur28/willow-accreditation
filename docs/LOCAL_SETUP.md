@@ -28,6 +28,12 @@ export TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock
 ./run.sh clean    # reset everything (needed if a smoke run left a PENDING accreditation behind)
 ```
 
+Two ways to run the service:
+
+- **`./run.sh`**: everything in containers, exactly as it is packaged. Use it to check the finished result.
+- **`./run.sh infra`**: only MySQL, Kafka and Redis; you run the service from IntelliJ (section 4). Use it while
+  changing code: a restart takes seconds instead of an image rebuild, and breakpoints work.
+
 ## 3. JDK and tests
 
 Only needed to build or test outside Docker.
@@ -45,14 +51,8 @@ java -version                         # 21
 2. Settings → Build Tools → Maven → Runner → **Delegate IDE build/run actions to Maven** (or Settings → Compiler →
    Annotation Processors → **Enable annotation processing**). Micronaut generates its beans, repositories and
    serialisers at compile time; without one of the two, the app starts with missing beans.
-3. Start the infrastructure, and let `kafka-init` finish before starting the app (a consumer that starts before its
-   topic exists only notices the topic after several minutes):
-
-   ```bash
-   docker compose up -d --wait mysql redis kafka
-   docker compose up kafka-init      # creates the topics and sample users, then exits
-   ```
-
+3. Start the infrastructure with `./run.sh infra`. It stops the service's container if the full stack was running
+   (freeing ports 9999 and 9998), starts MySQL, Kafka and Redis, and waits until the topics and sample users exist.
    Then run or debug `Application`. It reads `localhost` ports by default; add `SECURITY_ENABLED=true` to the run
    configuration's environment to turn security on.
 4. `requests.http` runs from the editor gutter.
