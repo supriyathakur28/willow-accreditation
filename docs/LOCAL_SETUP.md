@@ -47,10 +47,17 @@ java -version                         # 21
 
 ## 4. IntelliJ IDEA
 
-1. Open the folder as a Maven project; set the project SDK to 21.
-2. Settings → Build Tools → Maven → Runner → **Delegate IDE build/run actions to Maven** (or Settings → Compiler →
-   Annotation Processors → **Enable annotation processing**). Micronaut generates its beans, repositories and
-   serialisers at compile time; without one of the two, the app starts with missing beans.
+1. Open the folder as a Maven project; set the project SDK to 21 (File → Project Structure → Project). Under
+   Settings → Build Tools → Maven, use the Maven wrapper, and Java 21 for Maven's runner (*Use Project JDK*).
+   Setting names vary between IntelliJ versions; what matters is that Reload All Maven Projects and Lifecycle →
+   `compile` succeed.
+2. **Enable annotation processing** (recommended): Settings → Compiler → Annotation Processors → **Enable annotation
+   processing**, keeping the profile imported from `pom.xml`. Micronaut generates its beans, repositories and
+   serialisers at compile time; without it, the app starts with missing beans. IntelliJ's own build then
+   recompiles only what changed and hot-swap works while debugging.
+   If startup fails with an odd "No bean of type …" error, the generated code is stale: Build → **Rebuild Project**.
+   If it persists, tick Build Tools → Maven → Runner → **Delegate IDE build/run actions to Maven** (slower, but it
+   builds exactly as Maven does).
 3. Start the infrastructure with `./run.sh infra`. It stops the service's container if the full stack was running
    (freeing ports 9999 and 9998), starts MySQL, Kafka and Redis, and waits until the topics and sample users exist.
    Then run or debug `Application`. It reads `localhost` ports by default; add `SECURITY_ENABLED=true` to the run
