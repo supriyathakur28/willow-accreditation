@@ -8,7 +8,9 @@ import java.util.UUID;
  * Every event carries a full snapshot (user, type, status, version, submittedAt), so a consumer can
  * build or repair its row from any single event, even when events arrive out of order.
  */
-public sealed interface AccreditationEvent {
+public sealed interface AccreditationEvent permits AccreditationEvent.AccreditationSubmitted,
+        AccreditationEvent.AccreditationConfirmed, AccreditationEvent.AccreditationFailed,
+        AccreditationEvent.AccreditationExpired {
 
     int SCHEMA_VERSION = 1;
 

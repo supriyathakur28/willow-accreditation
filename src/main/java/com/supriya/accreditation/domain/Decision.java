@@ -1,7 +1,7 @@
 package com.supriya.accreditation.domain;
 
 /** The outcome of {@link AccreditationDecider#decide}: a value, never an exception. */
-public sealed interface Decision {
+public sealed interface Decision permits Decision.Accepted, Decision.NoOp, Decision.Rejected {
 
     /** The command is legal: persist the event and apply it. */
     record Accepted(AccreditationEvent event) implements Decision {

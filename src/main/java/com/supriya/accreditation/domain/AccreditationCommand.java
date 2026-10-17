@@ -4,7 +4,7 @@ import java.time.Instant;
 import java.util.OptionalLong;
 
 /** A request to change an existing accreditation. Creation is handled by {@link AccreditationDecider#submit}. */
-public sealed interface AccreditationCommand {
+public sealed interface AccreditationCommand permits AccreditationCommand.Finalise, AccreditationCommand.ExpireIfStale {
 
     /**
      * An admin's decision ({@code PUT /user/accreditation/{id}}).
