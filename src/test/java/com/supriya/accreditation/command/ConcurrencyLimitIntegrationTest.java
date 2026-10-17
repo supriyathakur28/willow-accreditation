@@ -22,18 +22,18 @@ class ConcurrencyLimitIntegrationTest extends ApiIntegrationTest {
     void shedsAdminWritesBeyondTheLimitAtOnce() throws Exception {
         resetDatabases();
         registerUser(USER);
-        String id = idOf(send(HttpRequest.POST("/user/accreditation", BRIEF_POST)));
-        String url = "jdbc:mysql://" + MYSQL.getHost() + ":" + MYSQL.getMappedPort(3306) + "/accreditation_write";
+        final String id = idOf(send(HttpRequest.POST("/user/accreditation", BRIEF_POST)));
+        final String url = "jdbc:mysql://" + MYSQL.getHost() + ":" + MYSQL.getMappedPort(3306) + "/accreditation_write";
         try (Connection holder = DriverManager.getConnection(url, "root", MYSQL.getPassword())) {
             holder.setAutoCommit(false);
             holder.createStatement().execute("SELECT * FROM accreditations FOR UPDATE");
             // Takes the only permit and waits on the row lock
-            CompletableFuture<Reply> slow = CompletableFuture.supplyAsync(() -> send(put(id, "CONFIRMED")));
+            final CompletableFuture<Reply> slow = CompletableFuture.supplyAsync(() -> send(put(id, "CONFIRMED")));
             await().pollDelay(Duration.ofMillis(500)).until(() -> true);
 
-            long start = System.nanoTime();
-            Reply shed = send(put(id, "FAILED"));
-            Duration waited = Duration.ofNanos(System.nanoTime() - start);
+            final long start = System.nanoTime();
+            final Reply shed = send(put(id, "FAILED"));
+            final Duration waited = Duration.ofNanos(System.nanoTime() - start);
 
             assertThat(shed.status()).isEqualTo(503);
             assertThat(shed.header("Retry-After")).isEqualTo("1");

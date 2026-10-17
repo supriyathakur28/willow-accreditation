@@ -35,8 +35,9 @@ public class TokenController {
     private final JwtTokenGenerator tokens;
     private final int expirySeconds;
 
-    TokenController(JwtTokenGenerator tokens,
-                    @Value("${micronaut.security.token.generator.access-token.expiration:3600}") int expirySeconds) {
+    TokenController(
+            final JwtTokenGenerator tokens,
+            @Value("${micronaut.security.token.generator.access-token.expiration:3600}") final int expirySeconds) {
         this.tokens = tokens;
         this.expirySeconds = expirySeconds;
     }
@@ -45,26 +46,30 @@ public class TokenController {
     @JsonIgnoreProperties(ignoreUnknown = false)
     public record TokenRequest(
             @NotNull @Pattern(regexp = "ADMIN|USER", message = "must be one of ADMIN, USER") String role,
-            @Nullable @Pattern(regexp = "[A-Za-z0-9_.:-]{1,64}", message = "must be 1-64 characters: letters, digits, '_', '.', ':' or '-'") String subject,
-            @Nullable @Pattern(regexp = PathIds.USER_ID_PATTERN, message = "must be 1-64 characters: letters, digits, '_' or '-'") String userId) {
+            @Nullable @Pattern(regexp = "[A-Za-z0-9_.:-]{1,64}",
+                    message = "must be 1-64 characters: letters, digits, '_', '.', ':' or '-'") String subject,
+            @Nullable @Pattern(regexp = PathIds.USER_ID_PATTERN, message = PathIds.ID_FORMAT_MESSAGE) String userId) {
     }
 
     @Serdeable
-    public record TokenResponse(String accessToken, String tokenType, int expiresIn) {
+    public record TokenResponse(
+            String accessToken,
+            String tokenType,
+            int expiresIn) {
     }
 
     @Post
-    public TokenResponse issue(@Body @Valid TokenRequest request) {
-        Authentication authentication = Roles.ADMIN.equals(request.role())
+    public TokenResponse issue(@Body @Valid final TokenRequest request) {
+        final Authentication authentication = Roles.ADMIN.equals(request.role())
                 ? Authentication.build(request.subject() == null ? "admin" : request.subject(), List.of(Roles.ADMIN))
                 : Authentication.build("user:" + required(request.userId()), List.of(Roles.USER),
-                        Map.of(Roles.USER_ID_CLAIM, request.userId()));
-        String token = tokens.generateToken(authentication, expirySeconds)
+                Map.of(Roles.USER_ID_CLAIM, request.userId()));
+        final String token = tokens.generateToken(authentication, expirySeconds)
                 .orElseThrow(() -> new IllegalStateException("Token generation is not configured"));
         return new TokenResponse(token, "Bearer", expirySeconds);
     }
 
-    private static String required(@Nullable String userId) {
+    private static String required(@Nullable final String userId) {
         if (userId == null) {
             throw ApiException.invalidField("user_id", ErrorCodes.REQUIRED, "is required for a USER token");
         }

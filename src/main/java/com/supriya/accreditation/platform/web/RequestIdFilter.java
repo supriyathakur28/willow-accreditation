@@ -20,14 +20,18 @@ import java.util.Map;
 public class RequestIdFilter implements Ordered {
 
     @RequestFilter
-    public void assign(HttpRequest<?> request, MutablePropagatedContext context) {
-        String requestId = RequestIds.acceptOrGenerate(request.getHeaders().get(RequestIds.HEADER));
+    public void assign(
+            final HttpRequest<?> request,
+            final MutablePropagatedContext context) {
+        final String requestId = RequestIds.acceptOrGenerate(request.getHeaders().get(RequestIds.HEADER));
         request.setAttribute(RequestIds.ATTRIBUTE, requestId);
         context.add(new MdcPropagationContext(Map.of(RequestIds.MDC_KEY, requestId)));
     }
 
     @ResponseFilter
-    public void echo(HttpRequest<?> request, MutableHttpResponse<?> response) {
+    public void echo(
+            final HttpRequest<?> request,
+            final MutableHttpResponse<?> response) {
         RequestIds.of(request).ifPresent(id -> response.header(RequestIds.HEADER, id));
     }
 

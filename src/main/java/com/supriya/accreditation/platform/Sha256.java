@@ -9,7 +9,7 @@ public final class Sha256 {
     private Sha256() {
     }
 
-    public static String hex(byte[] bytes) {
+    public static String hex(final byte[] bytes) {
         try {
             return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));
         } catch (NoSuchAlgorithmException e) {

@@ -21,9 +21,9 @@ class WriteTransactionsIntegrationTest extends IntegrationTest {
 
     @Test
     void retriesTheWholeTransactionAfterADeadlock() {
-        AtomicInteger attempts = new AtomicInteger();
+        final AtomicInteger attempts = new AtomicInteger();
 
-        String result = transactions.inTransaction(() -> {
+        final String result = transactions.inTransaction(() -> {
             if (attempts.incrementAndGet() <= 2) {
                 throw new RuntimeException(new SQLTransactionRollbackException("Deadlock found", "40001", 1213));
             }
@@ -36,7 +36,7 @@ class WriteTransactionsIntegrationTest extends IntegrationTest {
 
     @Test
     void givesUpAfterTwoRetriesWith503() {
-        AtomicInteger attempts = new AtomicInteger();
+        final AtomicInteger attempts = new AtomicInteger();
 
         assertThatThrownBy(() -> transactions.inTransaction(() -> {
             attempts.incrementAndGet();
@@ -47,7 +47,7 @@ class WriteTransactionsIntegrationTest extends IntegrationTest {
 
     @Test
     void doesNotRetryALockWaitTimeout() {
-        AtomicInteger attempts = new AtomicInteger();
+        final AtomicInteger attempts = new AtomicInteger();
 
         assertThatThrownBy(() -> transactions.inTransaction(() -> {
             attempts.incrementAndGet();
@@ -58,7 +58,7 @@ class WriteTransactionsIntegrationTest extends IntegrationTest {
 
     @Test
     void passesBusinessErrorsThrough() {
-        RuntimeException duplicate = new RuntimeException(
+        final RuntimeException duplicate = new RuntimeException(
                 new SQLIntegrityConstraintViolationException("Duplicate entry", "23000", 1062));
 
         assertThatThrownBy(() -> transactions.inTransaction(() -> {

@@ -46,18 +46,18 @@ class ConcurrencyIntegrationTest extends ApiIntegrationTest {
 
     @RepeatedTest(3)
     void parallelDecisionsOnOneAccreditationFormALegalChain() {
-        String id = idOf(send(HttpRequest.POST("/user/accreditation", BRIEF_POST)));
+        final String id = idOf(send(HttpRequest.POST("/user/accreditation", BRIEF_POST)));
 
-        List<Reply> replies = concurrently(20, i -> send(put(id, OUTCOMES.get(i % OUTCOMES.size()))));
+        final List<Reply> replies = concurrently(20, i -> send(put(id, OUTCOMES.get(i % OUTCOMES.size()))));
 
         assertThat(replies).extracting(Reply::status).allMatch(s -> s == 200 || s == 409);
-        List<Map<String, Object>> chain = events(id);
+        final List<Map<String, Object>> chain = events(id);
         // Every accepted change starts from the state committed just before it
         AccreditationStatus current = AccreditationStatus.PENDING;
         long version = 1;
         for (Map<String, Object> event : chain.subList(1, chain.size())) {
-            AccreditationStatus from = AccreditationStatus.valueOf((String) event.get("previous_status"));
-            AccreditationStatus to = AccreditationStatus.valueOf((String) event.get("status"));
+            final AccreditationStatus from = AccreditationStatus.valueOf((String) event.get("previous_status"));
+            final AccreditationStatus to = AccreditationStatus.valueOf((String) event.get("status"));
             assertThat(from).isEqualTo(current);
             assertThat(current.canMoveTo(to)).as("%s -> %s", from, to).isTrue();
             assertThat(((Number) event.get("version")).longValue()).isEqualTo(++version);
@@ -67,7 +67,7 @@ class ConcurrencyIntegrationTest extends ApiIntegrationTest {
         assertThat(rows("accreditation_write", "SELECT status, version FROM accreditations").getFirst())
                 .containsEntry("status", current.name()).containsEntry("version", version);
         // Every request for a different status after the terminal one was refused
-        long refused = replies.stream().filter(r -> r.status() == 409).count();
+        final long refused = replies.stream().filter(r -> r.status() == 409).count();
         assertThat(refused).isPositive();
         assertThat(replies.stream().filter(r -> r.status() == 409))
                 .allSatisfy(r -> assertThat(r.body()).containsEntry("error_code", "TRANSITION_NOT_ALLOWED"));
@@ -75,7 +75,7 @@ class ConcurrencyIntegrationTest extends ApiIntegrationTest {
 
     @RepeatedTest(3)
     void parallelSubmissionsForOneUserCreateExactlyOnePending() {
-        List<Reply> replies = concurrently(20, i -> send(HttpRequest.POST("/user/accreditation", BRIEF_POST)));
+        final List<Reply> replies = concurrently(20, i -> send(HttpRequest.POST("/user/accreditation", BRIEF_POST)));
 
         assertThat(replies).extracting(Reply::status).containsOnly(201, 409);
         assertThat(replies.stream().filter(r -> r.status() == 201)).hasSize(1);
@@ -85,13 +85,13 @@ class ConcurrencyIntegrationTest extends ApiIntegrationTest {
 
     @Test
     void parallelSubmissionsForDifferentUsersDoNotContend() {
-        List<String> users = new ArrayList<>();
+        final List<String> users = new ArrayList<>();
         for (int i = 0; i < 20; i++) {
             users.add("user-" + i);
             registerUser("user-" + i);
         }
 
-        List<Reply> replies = concurrently(20, i ->
+        final List<Reply> replies = concurrently(20, i ->
                 send(HttpRequest.POST("/user/accreditation", BRIEF_POST.replace(USER, users.get(i)))));
 
         assertThat(replies).extracting(Reply::status).containsOnly(201);
@@ -99,7 +99,7 @@ class ConcurrencyIntegrationTest extends ApiIntegrationTest {
 
     @RepeatedTest(3)
     void concurrentRetriesWithOneIdempotencyKeyCreateOneAccreditation() {
-        List<Reply> replies = concurrently(10, i ->
+        final List<Reply> replies = concurrently(10, i ->
                 send(HttpRequest.POST("/user/accreditation", BRIEF_POST).header("Idempotency-Key", "same-key")));
 
         assertThat(replies).extracting(Reply::status).containsOnly(201);
@@ -109,7 +109,7 @@ class ConcurrencyIntegrationTest extends ApiIntegrationTest {
 
     @RepeatedTest(3)
     void concurrentRequestsReusingAKeyWithDifferentBodiesCreateOneAccreditation() {
-        List<Reply> replies = concurrently(10, i -> send(HttpRequest.POST("/user/accreditation",
+        final List<Reply> replies = concurrently(10, i -> send(HttpRequest.POST("/user/accreditation",
                 i % 2 == 0 ? BRIEF_POST : BRIEF_POST.replace("BY_INCOME", "BY_NET_WORTH"))
                 .header("Idempotency-Key", "same-key")));
 
@@ -120,28 +120,28 @@ class ConcurrencyIntegrationTest extends ApiIntegrationTest {
 
     @RepeatedTest(3)
     void theExpiryJobRacingARevocationLeavesExactlyOneDecisionPerAccreditation() {
-        List<String> ids = new ArrayList<>();
+        final List<String> ids = new ArrayList<>();
         for (int i = 0; i < 20; i++) {
             registerUser("racer-" + i);
-            String id = idOf(send(HttpRequest.POST("/user/accreditation", BRIEF_POST.replace(USER, "racer-" + i))));
+            final String id = idOf(send(HttpRequest.POST("/user/accreditation", BRIEF_POST.replace(USER, "racer-" + i))));
             send(put(id, "CONFIRMED"));
             ids.add(id);
         }
         sql("accreditation_write", "UPDATE accreditations SET updated_at = NOW(6) - INTERVAL 31 DAY");
 
-        List<Object> results = concurrently(21, i -> i == 20
+        final List<Object> results = concurrently(21, i -> i == 20
                 ? expiryJob.expireStaleConfirmations()
                 : send(put(ids.get(i), "FAILED")));
 
         for (String id : ids) {
-            List<Map<String, Object>> chain = events(id);
+            final List<Map<String, Object>> chain = events(id);
             assertThat(chain).hasSize(3); // submitted, confirmed, then exactly one of expired or failed
-            Map<String, Object> last = chain.getLast();
+            final Map<String, Object> last = chain.getLast();
             assertThat(last.get("previous_status")).isEqualTo("CONFIRMED");
             assertThat(last.get("status")).isIn("EXPIRED", "FAILED");
         }
-        ExpiryJob.Run run = (ExpiryJob.Run) results.getLast();
-        long revoked = results.subList(0, 20).stream().filter(r -> ((Reply) r).status() == 200).count();
+        final ExpiryJob.Run run = (ExpiryJob.Run) results.getLast();
+        final long revoked = results.subList(0, 20).stream().filter(r -> ((Reply) r).status() == 200).count();
         assertThat(run.expired() + revoked).isEqualTo(20);
         assertThat(run.failed()).isZero();
     }
@@ -150,20 +150,20 @@ class ConcurrencyIntegrationTest extends ApiIntegrationTest {
     void twoJobInstancesExpireEachAccreditationOnce() {
         for (int i = 0; i < 50; i++) {
             registerUser("job-" + i);
-            String id = idOf(send(HttpRequest.POST("/user/accreditation", BRIEF_POST.replace(USER, "job-" + i))));
+            final String id = idOf(send(HttpRequest.POST("/user/accreditation", BRIEF_POST.replace(USER, "job-" + i))));
             send(put(id, "CONFIRMED"));
         }
         sql("accreditation_write", "UPDATE accreditations SET updated_at = NOW(6) - INTERVAL 31 DAY");
         sql("accreditation_write", "DELETE FROM outbox_events");
 
         // Bypasses the job lock on purpose: even two overlapping runs cannot expire a row twice
-        List<ExpiryJob.Run> runs = concurrently(2, i -> expiryJob.expireStaleConfirmations());
+        final List<ExpiryJob.Run> runs = concurrently(2, i -> expiryJob.expireStaleConfirmations());
 
         assertThat(runs.get(0).expired() + runs.get(1).expired()).isEqualTo(50);
         assertThat(rows("accreditation_write", "SELECT * FROM outbox_events")).hasSize(50);
     }
 
-    private List<Map<String, Object>> events(String accreditationId) {
+    private List<Map<String, Object>> events(final String accreditationId) {
         return rows("accreditation_write", "SELECT payload FROM outbox_events WHERE aggregate_id = UUID_TO_BIN('"
                 + accreditationId + "') ORDER BY id").stream()
                 .map(row -> parse((String) row.get("payload")))
@@ -171,20 +171,22 @@ class ConcurrencyIntegrationTest extends ApiIntegrationTest {
     }
 
     /** Runs n tasks on virtual threads, released at the same instant. */
-    private static <T> List<T> concurrently(int n, IntFunction<T> task) {
-        CountDownLatch start = new CountDownLatch(1);
+    private static <T> List<T> concurrently(
+            final int n,
+            final IntFunction<T> task) {
+        final CountDownLatch start = new CountDownLatch(1);
         try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
-            List<Future<T>> futures = new ArrayList<>();
+            final List<Future<T>> futures = new ArrayList<>();
             for (int i = 0; i < n; i++) {
-                int index = i;
-                Callable<T> callable = () -> {
+                final int index = i;
+                final Callable<T> callable = () -> {
                     start.await();
                     return task.apply(index);
                 };
                 futures.add(executor.submit(callable));
             }
             start.countDown();
-            List<T> results = new ArrayList<>();
+            final List<T> results = new ArrayList<>();
             for (Future<T> future : futures) {
                 results.add(future.get());
             }

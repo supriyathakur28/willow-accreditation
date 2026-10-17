@@ -16,11 +16,17 @@ public record ApiError(
         @Nullable List<InvalidField> invalidFields,
         @Nullable String currentStatus) {
 
-    public static ApiError of(String errorCode, String message, @Nullable String requestId) {
+    public static ApiError of(
+            final String errorCode,
+            final String message,
+            @Nullable final String requestId) {
         return new ApiError(errorCode, message, requestId, null, null);
     }
 
     @Serdeable
-    public record InvalidField(String fieldName, String error, String message) {
+    public record InvalidField(
+            String fieldName,
+            String error,
+            String message) {
     }
 }

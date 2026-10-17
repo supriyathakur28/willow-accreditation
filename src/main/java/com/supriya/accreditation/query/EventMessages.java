@@ -13,7 +13,9 @@ final class EventMessages {
     private EventMessages() {
     }
 
-    static AccreditationEventMessage parse(JsonMapper json, ConsumerRecord<String, String> record) {
+    static AccreditationEventMessage parse(
+            final JsonMapper json,
+            final ConsumerRecord<String, String> record) {
         if (record.value() == null) {
             throw new PoisonRecordException("Empty record");
         }

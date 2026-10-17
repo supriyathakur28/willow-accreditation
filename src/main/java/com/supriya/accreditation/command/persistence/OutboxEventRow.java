@@ -24,8 +24,13 @@ public record OutboxEventRow(
         Instant createdAt,
         @Nullable Instant publishedAt) {
 
-    public static OutboxEventRow pending(UUID eventId, UUID aggregateId, String eventType, String payload,
-                                         @Nullable String requestId, Instant createdAt) {
+    public static OutboxEventRow pending(
+            final UUID eventId,
+            final UUID aggregateId,
+            final String eventType,
+            final String payload,
+            @Nullable final String requestId,
+            final Instant createdAt) {
         return new OutboxEventRow(null, eventId, aggregateId, eventType, payload, requestId, createdAt, null);
     }
 }

@@ -63,7 +63,7 @@ class EventFlowIntegrationTest extends ApiIntegrationTest {
 
     @Test
     void theClientSeesEveryChangeAndTheHistoryRecordsIt() {
-        String id = idOf(send(HttpRequest.POST("/user/accreditation", BRIEF_POST)));
+        final String id = idOf(send(HttpRequest.POST("/user/accreditation", BRIEF_POST)));
         await().atMost(EVENTUALLY).until(() -> statusOf(id), "PENDING"::equals);
 
         send(put(id, "CONFIRMED"));
@@ -72,11 +72,11 @@ class EventFlowIntegrationTest extends ApiIntegrationTest {
         send(put(id, "FAILED")); // revocation
         await().atMost(EVENTUALLY).until(() -> statusOf(id), "FAILED"::equals);
 
-        Reply get = send(HttpRequest.GET("/user/" + USER + "/accreditation"));
+        final Reply get = send(HttpRequest.GET("/user/" + USER + "/accreditation"));
         assertThat(get.body()).isEqualTo(Map.of("user_id", USER, "accreditation_statuses",
                 Map.of(id, Map.of("accreditation_type", "BY_INCOME", "status", "FAILED"))));
 
-        List<Map<String, Object>> history = await().atMost(EVENTUALLY)
+        final List<Map<String, Object>> history = await().atMost(EVENTUALLY)
                 .until(() -> historyOf(id), h -> h.size() == 3);
         assertThat(history).extracting(h -> h.get("version")).containsExactly(1, 2, 3);
         assertThat(history).extracting(h -> h.get("event_type"))
@@ -89,7 +89,7 @@ class EventFlowIntegrationTest extends ApiIntegrationTest {
 
     @Test
     void anExpiryByTheJobReachesTheClientAndTheHistory() {
-        String id = idOf(send(HttpRequest.POST("/user/accreditation", BRIEF_POST)));
+        final String id = idOf(send(HttpRequest.POST("/user/accreditation", BRIEF_POST)));
         send(put(id, "CONFIRMED"));
         // Thirty-one days pass
         sql("accreditation_write", "UPDATE accreditations SET updated_at = NOW(6) - INTERVAL 31 DAY");
@@ -97,15 +97,15 @@ class EventFlowIntegrationTest extends ApiIntegrationTest {
         assertThat(expiryJob.expireStaleConfirmations().expired()).isEqualTo(1);
 
         await().atMost(EVENTUALLY).until(() -> statusOf(id), "EXPIRED"::equals);
-        List<Map<String, Object>> history = await().atMost(EVENTUALLY).until(() -> historyOf(id), h -> h.size() == 3);
+        final List<Map<String, Object>> history = await().atMost(EVENTUALLY).until(() -> historyOf(id), h -> h.size() == 3);
         assertThat(history.get(2)).containsEntry("event_type", "AccreditationExpired")
                 .containsEntry("from_status", "CONFIRMED").containsEntry("performed_by", "system:expiry-job");
     }
 
     @Test
     void anUnknownUserHasAnEmptyMapAndAMalformedOneIsRejected() {
-        Reply unknown = send(HttpRequest.GET("/user/nobody/accreditation"));
-        Reply malformed = send(HttpRequest.GET("/user/not%20valid/accreditation"));
+        final Reply unknown = send(HttpRequest.GET("/user/nobody/accreditation"));
+        final Reply malformed = send(HttpRequest.GET("/user/not%20valid/accreditation"));
 
         assertThat(unknown.status()).isEqualTo(200);
         assertThat(unknown.body()).isEqualTo(Map.of("user_id", "nobody", "accreditation_statuses", Map.of()));
@@ -121,10 +121,10 @@ class EventFlowIntegrationTest extends ApiIntegrationTest {
 
     @Test
     void duplicateAndLateEventsNeverMoveTheViewBackwards() {
-        UUID id = UUID.randomUUID();
-        String v1 = event(UUID.randomUUID(), id, "AccreditationSubmitted", null, "PENDING", 1);
-        String v2 = event(UUID.randomUUID(), id, "AccreditationConfirmed", "PENDING", "CONFIRMED", 2);
-        String v3 = event(UUID.randomUUID(), id, "AccreditationExpired", "CONFIRMED", "EXPIRED", 3);
+        final UUID id = UUID.randomUUID();
+        final String v1 = event(UUID.randomUUID(), id, "AccreditationSubmitted", null, "PENDING", 1);
+        final String v2 = event(UUID.randomUUID(), id, "AccreditationConfirmed", "PENDING", "CONFIRMED", 2);
+        final String v3 = event(UUID.randomUUID(), id, "AccreditationExpired", "CONFIRMED", "EXPIRED", 3);
 
         publish(id, v3);
         publish(id, v1); // late
@@ -139,14 +139,14 @@ class EventFlowIntegrationTest extends ApiIntegrationTest {
 
     @Test
     void poisonEventsGoToEachGroupsDeadLetterTopicAndTheStreamContinues() {
-        UUID id = UUID.randomUUID();
-        String marker = "poison-" + UUID.randomUUID();
+        final UUID id = UUID.randomUUID();
+        final String marker = "poison-" + UUID.randomUUID();
         publish(id, "{\"not\": \"an event\", \"marker\": \"" + marker + "\"}");
         publish(id, event(UUID.randomUUID(), id, "AccreditationSubmitted", null, "PENDING", 1));
 
         await().atMost(EVENTUALLY).until(() -> statusOf(id.toString()), "PENDING"::equals);
         for (String group : List.of("accreditation-projection", "accreditation-history")) {
-            List<ConsumerRecord<String, String>> dead = await().atMost(EVENTUALLY).until(
+            final List<ConsumerRecord<String, String>> dead = await().atMost(EVENTUALLY).until(
                     () -> deadLetters(Topics.deadLetter(Topics.ACCREDITATION_EVENTS, group), marker), d -> !d.isEmpty());
             assertThat(header(dead.getFirst(), "dlt.error")).contains("PoisonRecordException");
         }
@@ -154,13 +154,13 @@ class EventFlowIntegrationTest extends ApiIntegrationTest {
 
     @Test
     void aSecondEventForTheSameVersionIsABugForHistoryOnly() {
-        UUID id = UUID.randomUUID();
-        UUID conflicting = UUID.randomUUID();
+        final UUID id = UUID.randomUUID();
+        final UUID conflicting = UUID.randomUUID();
         publish(id, event(UUID.randomUUID(), id, "AccreditationSubmitted", null, "PENDING", 1));
         publish(id, event(conflicting, id, "AccreditationSubmitted", null, "PENDING", 1));
 
-        String historyDlt = Topics.deadLetter(Topics.ACCREDITATION_EVENTS, "accreditation-history");
-        List<ConsumerRecord<String, String>> dead = await().atMost(EVENTUALLY)
+        final String historyDlt = Topics.deadLetter(Topics.ACCREDITATION_EVENTS, "accreditation-history");
+        final List<ConsumerRecord<String, String>> dead = await().atMost(EVENTUALLY)
                 .until(() -> deadLetters(historyDlt, conflicting.toString()), d -> !d.isEmpty());
         assertThat(header(dead.getFirst(), "dlt.error")).contains("already recorded under a different event");
         assertThat(deadLetters(Topics.deadLetter(Topics.ACCREDITATION_EVENTS, "accreditation-projection"),
@@ -169,7 +169,7 @@ class EventFlowIntegrationTest extends ApiIntegrationTest {
 
     @Test
     void aUserRegisteredUpstreamCanSubmit() {
-        String newUser = "u" + UUID.randomUUID().toString().replace("-", "");
+        final String newUser = "u" + UUID.randomUUID().toString().replace("-", "");
         PRODUCER.send(new ProducerRecord<>(Topics.USER_EVENTS, newUser, """
                 {"event_id": "e-1", "event_type": "UserRegistered", "schema_version": 1,
                  "user_id": "%s", "registered_at": "2026-10-01T09:00:00Z"}""".formatted(newUser)));
@@ -184,7 +184,7 @@ class EventFlowIntegrationTest extends ApiIntegrationTest {
     @Test
     void anyRecordForAUserMeansTheUserExists() {
         // On a compacted topic the latest record may be of any type: here a snapshot with no registration time
-        String newUser = "u" + UUID.randomUUID().toString().replace("-", "");
+        final String newUser = "u" + UUID.randomUUID().toString().replace("-", "");
         PRODUCER.send(new ProducerRecord<>(Topics.USER_EVENTS, newUser, """
                 {"event_type": "UserProfileUpdated", "user_id": "%s", "status": "ACTIVE"}""".formatted(newUser)));
         PRODUCER.flush();
@@ -195,9 +195,9 @@ class EventFlowIntegrationTest extends ApiIntegrationTest {
 
     @Test
     void aTombstoneIsAcceptedAndAMismatchedKeyIsPoison() {
-        String deleted = "u" + UUID.randomUUID().toString().replace("-", "");
-        String mismatched = "u" + UUID.randomUUID().toString().replace("-", "");
-        String next = "u" + UUID.randomUUID().toString().replace("-", "");
+        final String deleted = "u" + UUID.randomUUID().toString().replace("-", "");
+        final String mismatched = "u" + UUID.randomUUID().toString().replace("-", "");
+        final String next = "u" + UUID.randomUUID().toString().replace("-", "");
         PRODUCER.send(new ProducerRecord<>(Topics.USER_EVENTS, deleted, null));
         PRODUCER.send(new ProducerRecord<>(Topics.USER_EVENTS, mismatched, "{\"user_id\": \"someone-else\"}"));
         PRODUCER.send(new ProducerRecord<>(Topics.USER_EVENTS, next, "{\"user_id\": \"%s\"}".formatted(next)));
@@ -206,7 +206,7 @@ class EventFlowIntegrationTest extends ApiIntegrationTest {
         // The stream moves past both: a user published later on the same topic still arrives
         await().atMost(EVENTUALLY).until(() ->
                 send(HttpRequest.POST("/user/accreditation", BRIEF_POST.replace(USER, next))).status() == 201);
-        List<ConsumerRecord<String, String>> dead = await().atMost(EVENTUALLY).until(
+        final List<ConsumerRecord<String, String>> dead = await().atMost(EVENTUALLY).until(
                 () -> deadLetters(Topics.deadLetter(Topics.USER_EVENTS, "known-users"), "someone-else"), d -> !d.isEmpty());
         assertThat(header(dead.getFirst(), "dlt.error")).contains("does not match its user_id");
         assertThat(rows("accreditation_write", "SELECT * FROM known_users WHERE user_id IN ('" + deleted + "', '"
@@ -215,7 +215,7 @@ class EventFlowIntegrationTest extends ApiIntegrationTest {
 
     @Test
     void eventsWrittenWhileKafkaIsDownArePublishedWhenItReturns() {
-        var docker = KAFKA.getDockerClient();
+        final var docker = KAFKA.getDockerClient();
         docker.pauseContainerCmd(KAFKA.getContainerId()).exec();
         String id;
         try {
@@ -229,9 +229,9 @@ class EventFlowIntegrationTest extends ApiIntegrationTest {
     }
 
     private String statusOf(String id) {
-        Reply reply = send(HttpRequest.GET("/user/" + USER + "/accreditation"));
-        @SuppressWarnings("unchecked")
-        Map<String, Map<String, Object>> statuses = (Map<String, Map<String, Object>>) reply.body().get("accreditation_statuses");
+        final Reply reply = send(HttpRequest.GET("/user/" + USER + "/accreditation"));
+        @SuppressWarnings("unchecked") final
+                Map<String, Map<String, Object>> statuses = (Map<String, Map<String, Object>>) reply.body().get("accreditation_statuses");
         if (statuses == null || !statuses.containsKey(id)) {
             return null;
         }
@@ -240,11 +240,17 @@ class EventFlowIntegrationTest extends ApiIntegrationTest {
 
     @SuppressWarnings("unchecked")
     private List<Map<String, Object>> historyOf(String id) {
-        Reply reply = send(HttpRequest.GET("/user/accreditation/" + id + "/history"));
+        final Reply reply = send(HttpRequest.GET("/user/accreditation/" + id + "/history"));
         return reply.status() == 200 ? (List<Map<String, Object>>) reply.body().get("history") : List.of();
     }
 
-    private static String event(UUID eventId, UUID accreditationId, String type, String previous, String status, int version) {
+    private static String event(
+            final UUID eventId,
+            final UUID accreditationId,
+            final String type,
+            final String previous,
+            final String status,
+            final int version) {
         return """
                 {"event_id": "%s", "event_type": "%s", "schema_version": 1, "accreditation_id": "%s",
                  "user_id": "%s", "accreditation_type": "BY_INCOME", %s "status": "%s", "version": %d,
@@ -253,13 +259,17 @@ class EventFlowIntegrationTest extends ApiIntegrationTest {
                         previous == null ? "" : "\"previous_status\": \"" + previous + "\",", status, version, version);
     }
 
-    private static void publish(UUID key, String value) {
+    private static void publish(
+            final UUID key,
+            final String value) {
         PRODUCER.send(new ProducerRecord<>(Topics.ACCREDITATION_EVENTS, key.toString(), value));
         PRODUCER.flush();
     }
 
-    private static List<ConsumerRecord<String, String>> deadLetters(String topic, String containing) {
-        List<ConsumerRecord<String, String>> result = new ArrayList<>();
+    private static List<ConsumerRecord<String, String>> deadLetters(
+            final String topic,
+            final String containing) {
+        final List<ConsumerRecord<String, String>> result = new ArrayList<>();
         try (KafkaConsumer<String, String> reader = new KafkaConsumer<>(Map.of(
                 ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA.getBootstrapServers(),
                 ConsumerConfig.GROUP_ID_CONFIG, "reader-" + UUID.randomUUID(),
@@ -278,7 +288,9 @@ class EventFlowIntegrationTest extends ApiIntegrationTest {
         return result;
     }
 
-    private static String header(ConsumerRecord<String, String> record, String name) {
+    private static String header(
+            final ConsumerRecord<String, String> record,
+            final String name) {
         return new String(record.headers().lastHeader(name).value(), StandardCharsets.UTF_8);
     }
 }

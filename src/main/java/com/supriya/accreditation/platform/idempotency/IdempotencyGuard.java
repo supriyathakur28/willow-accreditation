@@ -28,12 +28,16 @@ public class IdempotencyGuard {
 
     private final BeanProvider<StatefulRedisConnection<String, String>> redis;
 
-    public IdempotencyGuard(BeanProvider<StatefulRedisConnection<String, String>> redis) {
+    public IdempotencyGuard(final BeanProvider<StatefulRedisConnection<String, String>> redis) {
         this.redis = redis;
     }
 
-    public void check(String caller, String route, String idempotencyKey, String requestSha256) {
-        String key = "idem:" + caller + ":" + route + ":" + idempotencyKey;
+    public void check(
+            final String caller,
+            final String route,
+            final String idempotencyKey,
+            final String requestSha256) {
+        final String key = "idem:" + caller + ":" + route + ":" + idempotencyKey;
         String previous;
         try {
             // Bounded by the ?timeout= in redis.uri, which also covers opening the connection

@@ -11,7 +11,7 @@ import io.swagger.v3.oas.annotations.info.Info;
                 description = "Tracks investors' accreditation status: admin commands and the client-facing read model"))
 public class Application {
 
-    public static void main(String[] args) {
+    public static void main(final String[] args) {
         Micronaut.run(Application.class, args);
     }
 }

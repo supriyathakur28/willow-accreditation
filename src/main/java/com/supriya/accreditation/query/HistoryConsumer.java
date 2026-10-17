@@ -36,8 +36,11 @@ public class HistoryConsumer implements ApplicationEventListener<StartupEvent> {
     private final TransactionOperations<Connection> transactions;
     private final JsonMapper json;
 
-    HistoryConsumer(ConsumerRunner runner, StatusHistoryRepository history,
-                    @Named("read") TransactionOperations<Connection> transactions, JsonMapper json) {
+    HistoryConsumer(
+            final ConsumerRunner runner,
+            final StatusHistoryRepository history,
+            @Named("read") final TransactionOperations<Connection> transactions,
+            final JsonMapper json) {
         this.runner = runner;
         this.history = history;
         this.transactions = transactions;
@@ -45,18 +48,18 @@ public class HistoryConsumer implements ApplicationEventListener<StartupEvent> {
     }
 
     @Override
-    public void onApplicationEvent(StartupEvent event) {
+    public void onApplicationEvent(final StartupEvent event) {
         runner.start(RetryingConsumer.Settings.defaults(GROUP, Topics.ACCREDITATION_EVENTS), this::append);
     }
 
-    void append(ConsumerRecord<String, String> record) {
-        AccreditationEventMessage event = EventMessages.parse(json, record);
+    void append(final ConsumerRecord<String, String> record) {
+        final AccreditationEventMessage event = EventMessages.parse(json, record);
         try {
             transactions.executeWrite(status -> history.save(new StatusHistoryRow(event.eventId(),
                     event.accreditationId(), event.version(), event.eventType(), event.previousStatus(),
                     event.status(), event.performedBy(), event.occurredAt())));
         } catch (RuntimeException e) {
-            Optional<String> key = DuplicateKeys.violatedKey(e);
+            final Optional<String> key = DuplicateKeys.violatedKey(e);
             if (key.isEmpty()) {
                 throw e;
             }

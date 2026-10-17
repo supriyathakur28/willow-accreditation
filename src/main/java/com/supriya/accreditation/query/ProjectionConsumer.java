@@ -36,8 +36,11 @@ public class ProjectionConsumer implements ApplicationEventListener<StartupEvent
     private final TransactionOperations<Connection> transactions;
     private final JsonMapper json;
 
-    ProjectionConsumer(ConsumerRunner runner, AccreditationViewRepository views,
-                       @Named("read") TransactionOperations<Connection> transactions, JsonMapper json) {
+    ProjectionConsumer(
+            final ConsumerRunner runner,
+            final AccreditationViewRepository views,
+            @Named("read") final TransactionOperations<Connection> transactions,
+            final JsonMapper json) {
         this.runner = runner;
         this.views = views;
         this.transactions = transactions;
@@ -45,13 +48,13 @@ public class ProjectionConsumer implements ApplicationEventListener<StartupEvent
     }
 
     @Override
-    public void onApplicationEvent(StartupEvent event) {
+    public void onApplicationEvent(final StartupEvent event) {
         runner.start(RetryingConsumer.Settings.defaults(GROUP, Topics.ACCREDITATION_EVENTS), this::apply);
     }
 
-    void apply(ConsumerRecord<String, String> record) {
-        AccreditationEventMessage event = EventMessages.parse(json, record);
-        int updated = transactions.executeWrite(status -> views.applyIfNewer(
+    void apply(final ConsumerRecord<String, String> record) {
+        final AccreditationEventMessage event = EventMessages.parse(json, record);
+        final int updated = transactions.executeWrite(status -> views.applyIfNewer(
                 event.accreditationId(), event.status(), event.version(), event.occurredAt()));
         if (updated > 0) {
             return;

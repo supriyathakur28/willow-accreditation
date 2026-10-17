@@ -18,7 +18,9 @@ public interface KnownUserRepository extends GenericRepository<KnownUserRow, Str
     @Query("""
             INSERT INTO known_users (user_id, registered_at) VALUES (:userId, :registeredAt)
             ON DUPLICATE KEY UPDATE user_id = user_id""")
-    void insertIfAbsent(String userId, Instant registeredAt);
+    void insertIfAbsent(
+            String userId,
+            Instant registeredAt);
 
     boolean existsById(String userId);
 

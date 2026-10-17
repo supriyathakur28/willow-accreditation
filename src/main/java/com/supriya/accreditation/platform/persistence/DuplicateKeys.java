@@ -16,7 +16,7 @@ public final class DuplicateKeys {
     }
 
     /** The violated key's name without the table prefix, e.g. {@code uq_accreditations_idempotency_key}. */
-    public static Optional<String> violatedKey(Throwable error) {
+    public static Optional<String> violatedKey(final Throwable error) {
         for (Throwable t = error; t != null; t = t.getCause()) {
             if (t instanceof SQLIntegrityConstraintViolationException sql && sql.getErrorCode() == ER_DUP_ENTRY) {
                 return keyName(sql.getMessage());
@@ -25,21 +25,23 @@ public final class DuplicateKeys {
         return Optional.empty();
     }
 
-    public static boolean isViolationOf(Throwable error, String keyName) {
+    public static boolean isViolationOf(
+            final Throwable error,
+            final String keyName) {
         return violatedKey(error).filter(keyName::equals).isPresent();
     }
 
     // MySQL 8: "Duplicate entry 'x' for key 'accreditations.uq_accreditations_idempotency_key'"
-    private static Optional<String> keyName(String message) {
+    private static Optional<String> keyName(final String message) {
         if (message == null) {
             return Optional.empty();
         }
-        int start = message.lastIndexOf(MARKER);
-        int end = message.lastIndexOf('\'');
+        final int start = message.lastIndexOf(MARKER);
+        final int end = message.lastIndexOf('\'');
         if (start < 0 || end <= start + MARKER.length()) {
             return Optional.empty();
         }
-        String qualified = message.substring(start + MARKER.length(), end);
+        final String qualified = message.substring(start + MARKER.length(), end);
         return Optional.of(qualified.substring(qualified.lastIndexOf('.') + 1));
     }
 }

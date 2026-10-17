@@ -33,15 +33,18 @@ class AccreditationDeciderTest {
     private static final UUID EVENT_ID = UUID.fromString("0192a1d0-6f1d-7c3a-9a51-3c1f0b7d2e10");
     private static final String USER = "g8NlYJnk7zK9BlB1J2Ebjs0AkhCTpE1V";
 
-    private static Accreditation state(AccreditationStatus status, long version, Instant updatedAt) {
+    private static Accreditation state(
+            final AccreditationStatus status,
+            final long version,
+            final Instant updatedAt) {
         return new Accreditation(ID, USER, AccreditationType.BY_INCOME, status, version, CREATED, updatedAt, "admin-1");
     }
 
-    private static Accreditation state(AccreditationStatus status) {
+    private static Accreditation state(final AccreditationStatus status) {
         return state(status, 2, CREATED);
     }
 
-    private static Finalise finalise(Outcome outcome) {
+    private static Finalise finalise(final Outcome outcome) {
         return new Finalise(outcome, "admin-2", OptionalLong.empty());
     }
 
@@ -64,8 +67,11 @@ class AccreditationDeciderTest {
                 "EXPIRED,   CONFIRMED, REJECTED",
                 "EXPIRED,   FAILED,    REJECTED",
         })
-        void transitionTable(AccreditationStatus current, Outcome outcome, String expected) {
-            Decision decision = AccreditationDecider.decide(state(current), finalise(outcome), NOW, EVENT_ID);
+        void transitionTable(
+                final AccreditationStatus current,
+                final Outcome outcome,
+                final String expected) {
+            final Decision decision = AccreditationDecider.decide(state(current), finalise(outcome), NOW, EVENT_ID);
 
             switch (expected) {
                 case "ACCEPTED" -> assertThat(decision).isInstanceOf(Accepted.class);
@@ -78,7 +84,7 @@ class AccreditationDeciderTest {
 
         @Test
         void acceptedEventCarriesTheFullSnapshot() {
-            Decision decision = AccreditationDecider.decide(state(PENDING), finalise(Outcome.CONFIRMED), NOW, EVENT_ID);
+            final Decision decision = AccreditationDecider.decide(state(PENDING), finalise(Outcome.CONFIRMED), NOW, EVENT_ID);
 
             assertThat(decision).isEqualTo(new Accepted(new AccreditationConfirmed(
                     EVENT_ID, ID, USER, AccreditationType.BY_INCOME, PENDING, 3, CREATED, NOW, "admin-2")));
@@ -86,7 +92,7 @@ class AccreditationDeciderTest {
 
         @Test
         void revocationOfAConfirmedAccreditationRecordsThePreviousStatus() {
-            Decision decision = AccreditationDecider.decide(state(CONFIRMED), finalise(Outcome.FAILED), NOW, EVENT_ID);
+            final Decision decision = AccreditationDecider.decide(state(CONFIRMED), finalise(Outcome.FAILED), NOW, EVENT_ID);
 
             assertThat(decision).isInstanceOfSatisfying(Accepted.class, accepted -> {
                 assertThat(accepted.event()).isInstanceOf(AccreditationFailed.class);
@@ -96,16 +102,16 @@ class AccreditationDeciderTest {
 
         @Test
         void staleExpectedVersionIsRejected() {
-            var command = new Finalise(Outcome.FAILED, "admin-2", OptionalLong.of(1));
+            final var command = new Finalise(Outcome.FAILED, "admin-2", OptionalLong.of(1));
 
-            Decision decision = AccreditationDecider.decide(state(CONFIRMED, 2, CREATED), command, NOW, EVENT_ID);
+            final Decision decision = AccreditationDecider.decide(state(CONFIRMED, 2, CREATED), command, NOW, EVENT_ID);
 
             assertThat(decision).isEqualTo(new Rejected(Decision.Reason.VERSION_MISMATCH, state(CONFIRMED, 2, CREATED)));
         }
 
         @Test
         void matchingExpectedVersionIsAccepted() {
-            var command = new Finalise(Outcome.FAILED, "admin-2", OptionalLong.of(2));
+            final var command = new Finalise(Outcome.FAILED, "admin-2", OptionalLong.of(2));
 
             assertThat(AccreditationDecider.decide(state(CONFIRMED, 2, CREATED), command, NOW, EVENT_ID))
                     .isInstanceOf(Accepted.class);
@@ -114,8 +120,8 @@ class AccreditationDeciderTest {
         @Test
         void repeatingTheCurrentStatusIsANoOpEvenWithAStaleVersion() {
             // A retried PUT whose first attempt succeeded: the state already holds, so the retry gets the same 200.
-            var command = new Finalise(Outcome.FAILED, "admin-2", OptionalLong.of(2));
-            Accreditation failed = state(FAILED, 3, NOW);
+            final var command = new Finalise(Outcome.FAILED, "admin-2", OptionalLong.of(2));
+            final Accreditation failed = state(FAILED, 3, NOW);
 
             assertThat(AccreditationDecider.decide(failed, command, NOW, EVENT_ID)).isEqualTo(new NoOp(failed));
         }
@@ -129,9 +135,9 @@ class AccreditationDeciderTest {
 
         @Test
         void confirmedAndOlderThanTheCutoffIsExpired() {
-            Accreditation stale = state(CONFIRMED, 2, cutoff.minusSeconds(1));
+            final Accreditation stale = state(CONFIRMED, 2, cutoff.minusSeconds(1));
 
-            Decision decision = AccreditationDecider.decide(stale, expire, NOW, EVENT_ID);
+            final Decision decision = AccreditationDecider.decide(stale, expire, NOW, EVENT_ID);
 
             assertThat(decision).isEqualTo(new Accepted(new AccreditationExpired(
                     EVENT_ID, ID, USER, AccreditationType.BY_INCOME, CONFIRMED, 3, CREATED, NOW,
@@ -151,8 +157,10 @@ class AccreditationDeciderTest {
                 "FAILED,    5",
                 "EXPIRED,   5",
         })
-        void isNotEligibleForTheJob(AccreditationStatus status, int daysBeforeCutoff) {
-            Accreditation accreditation = state(status, 2, cutoff.minus(Duration.ofDays(daysBeforeCutoff)));
+        void isNotEligibleForTheJob(
+                final AccreditationStatus status,
+                final int daysBeforeCutoff) {
+            final Accreditation accreditation = state(status, 2, cutoff.minus(Duration.ofDays(daysBeforeCutoff)));
 
             assertThat(AccreditationDecider.decide(accreditation, expire, NOW, EVENT_ID))
                     .isEqualTo(new Rejected(Decision.Reason.NOT_ELIGIBLE_FOR_EXPIRY, accreditation));
@@ -164,7 +172,7 @@ class AccreditationDeciderTest {
 
         @Test
         void submissionCreatesAPendingAccreditationAtVersionOne() {
-            AccreditationSubmitted submitted = AccreditationDecider.submit(
+            final AccreditationSubmitted submitted = AccreditationDecider.submit(
                     ID, USER, AccreditationType.BY_NET_WORTH, "abc123", "admin-1", NOW, EVENT_ID);
 
             assertThat(submitted.previousStatus()).isNull();
@@ -175,8 +183,8 @@ class AccreditationDeciderTest {
 
         @Test
         void eachAcceptedChangeIsAppliedInTurn() {
-            Instant confirmedAt = CREATED.plus(Duration.ofDays(1));
-            Instant revokedAt = CREATED.plus(Duration.ofDays(2));
+            final Instant confirmedAt = CREATED.plus(Duration.ofDays(1));
+            final Instant revokedAt = CREATED.plus(Duration.ofDays(2));
             Accreditation s = AccreditationDecider.evolve(null, AccreditationDecider.submit(
                     ID, USER, AccreditationType.BY_INCOME, "abc123", "admin-1", CREATED, UUID.randomUUID()));
 
@@ -188,8 +196,11 @@ class AccreditationDeciderTest {
                     ID, USER, AccreditationType.BY_INCOME, FAILED, 3, CREATED, revokedAt, "admin-3"));
         }
 
-        private Accreditation apply(Accreditation s, AccreditationCommand command, Instant at) {
-            var accepted = (Accepted) AccreditationDecider.decide(s, command, at, UUID.randomUUID());
+        private Accreditation apply(
+                Accreditation s,
+                AccreditationCommand command,
+                Instant at) {
+            final var accepted = (Accepted) AccreditationDecider.decide(s, command, at, UUID.randomUUID());
             return AccreditationDecider.evolve(s, accepted.event());
         }
     }

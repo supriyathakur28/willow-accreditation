@@ -16,7 +16,7 @@ public final class Callers {
     }
 
     /** The audit actor: only ever the authenticated subject, never a value from the body or a header. */
-    public static String actor(@Nullable Principal principal) {
+    public static String actor(@Nullable final Principal principal) {
         return principal == null ? ANONYMOUS : principal.getName();
     }
 
@@ -24,11 +24,13 @@ public final class Callers {
      * An admin may read any user's accreditations; a user token only its own. Takes a {@link Principal} because
      * Micronaut can bind one as null when security is off, but cannot bind an {@link Authentication} parameter then.
      */
-    public static void requireMayRead(@Nullable Principal principal, String userId) {
+    public static void requireMayRead(
+            @Nullable final Principal principal,
+            final String userId) {
         if (!(principal instanceof Authentication authentication) || authentication.getRoles().contains(Roles.ADMIN)) {
             return;
         }
-        Object tokenUserId = authentication.getAttributes().get(Roles.USER_ID_CLAIM);
+        final Object tokenUserId = authentication.getAttributes().get(Roles.USER_ID_CLAIM);
         if (!userId.equals(tokenUserId)) {
             throw new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN", "This token may not read another user's accreditations");
         }

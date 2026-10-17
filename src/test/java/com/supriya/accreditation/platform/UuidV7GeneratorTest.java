@@ -23,7 +23,7 @@ class UuidV7GeneratorTest {
 
     @Test
     void isVersion7WithTheStandardVariant() {
-        UUID id = generator.next();
+        final UUID id = generator.next();
 
         assertThat(id.version()).isEqualTo(7);
         assertThat(id.variant()).isEqualTo(2);
@@ -31,14 +31,14 @@ class UuidV7GeneratorTest {
 
     @Test
     void embedsTheClockMillisecondsInTheFirst48Bits() {
-        UUID id = generator.next();
+        final UUID id = generator.next();
 
         assertThat(id.getMostSignificantBits() >>> 16).isEqualTo(NOW.toEpochMilli());
     }
 
     @Test
     void idsFromTheSameMillisecondAreStrictlyIncreasing() {
-        List<UUID> ids = new ArrayList<>();
+        final List<UUID> ids = new ArrayList<>();
         for (int i = 0; i < 10_000; i++) {
             ids.add(generator.next());
         }
@@ -53,9 +53,9 @@ class UuidV7GeneratorTest {
 
     @Test
     void concurrentCallersOnVirtualThreadsNeverGetTheSameId() throws Exception {
-        Set<UUID> seen = ConcurrentHashMap.newKeySet();
+        final Set<UUID> seen = ConcurrentHashMap.newKeySet();
         try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
-            List<Future<?>> futures = new ArrayList<>();
+            final List<Future<?>> futures = new ArrayList<>();
             for (int t = 0; t < 16; t++) {
                 futures.add(executor.submit(() -> {
                     for (int i = 0; i < 2_000; i++) {

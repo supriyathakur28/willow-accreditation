@@ -36,17 +36,22 @@ public abstract class ApiIntegrationTest extends IntegrationTest {
     @Inject @Client("/") protected HttpClient client;
     @Inject protected JsonMapper json;
 
-    protected record Reply(int status, Map<String, Object> body, HttpResponse<?> raw) {
-        public String header(String name) {
+    protected record Reply(
+            int status,
+            Map<String, Object> body,
+            HttpResponse<?> raw) {
+        public String header(final String name) {
             return raw.getHeaders().get(name);
         }
     }
 
-    protected static MutableHttpRequest<String> put(String id, String outcome) {
+    protected static MutableHttpRequest<String> put(
+            final String id,
+            final String outcome) {
         return HttpRequest.PUT("/user/accreditation/" + id, "{\"outcome\": \"" + outcome + "\"}");
     }
 
-    protected Reply send(MutableHttpRequest<?> request) {
+    protected Reply send(final MutableHttpRequest<?> request) {
         request.contentType(MediaType.APPLICATION_JSON_TYPE);
         HttpResponse<String> response;
         try {
@@ -56,12 +61,12 @@ public abstract class ApiIntegrationTest extends IntegrationTest {
                     .map(body -> (HttpResponse<String>) e.getResponse().toMutableResponse().body(body))
                     .orElse((HttpResponse<String>) e.getResponse());
         }
-        String body = response.getBody(String.class).orElse("");
+        final String body = response.getBody(String.class).orElse("");
         return new Reply(response.getStatus().getCode(), body.isBlank() ? Map.of() : parse(body), response);
     }
 
     @SuppressWarnings("unchecked")
-    protected Map<String, Object> parse(String body) {
+    protected Map<String, Object> parse(final String body) {
         try {
             return json.readValue(body, Map.class);
         } catch (IOException e) {
@@ -69,13 +74,13 @@ public abstract class ApiIntegrationTest extends IntegrationTest {
         }
     }
 
-    protected static String idOf(Reply reply) {
+    protected static String idOf(final Reply reply) {
         assertThat(reply.status()).as("body %s", reply.body()).isEqualTo(201);
         return (String) reply.body().get("accreditation_id");
     }
 
     @SuppressWarnings("unchecked")
-    protected static List<String> invalidFields(Reply reply) {
+    protected static List<String> invalidFields(final Reply reply) {
         return ((List<Map<String, Object>>) reply.body().get("invalid_fields")).stream()
                 .map(f -> f.get("field_name") + ":" + f.get("error"))
                 .toList();

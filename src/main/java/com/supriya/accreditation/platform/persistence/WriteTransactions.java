@@ -23,11 +23,11 @@ public class WriteTransactions {
 
     private final TransactionOperations<Connection> transactions;
 
-    public WriteTransactions(@Named("write") TransactionOperations<Connection> transactions) {
+    public WriteTransactions(@Named("write") final TransactionOperations<Connection> transactions) {
         this.transactions = transactions;
     }
 
-    public <T> T inTransaction(Supplier<T> work) {
+    public <T> T inTransaction(final Supplier<T> work) {
         for (int attempt = 0; ; attempt++) {
             try {
                 return transactions.executeWrite(status -> work.get());

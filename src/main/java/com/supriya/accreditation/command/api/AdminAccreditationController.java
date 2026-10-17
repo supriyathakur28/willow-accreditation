@@ -53,7 +53,10 @@ public class AdminAccreditationController {
     private final IdempotencyGuard idempotency;
     private final JsonMapper json;
 
-    AdminAccreditationController(AccreditationCommandService commands, IdempotencyGuard idempotency, JsonMapper json) {
+    AdminAccreditationController(
+            final AccreditationCommandService commands,
+            final IdempotencyGuard idempotency,
+            final JsonMapper json) {
         this.commands = commands;
         this.idempotency = idempotency;
         this.json = json;
@@ -61,15 +64,15 @@ public class AdminAccreditationController {
 
     @Post
     public HttpResponse<AccreditationIdResponse> submit(
-            @Body @Valid SubmitAccreditationRequest request,
-            @Header(IDEMPOTENCY_KEY) @Nullable @Pattern(regexp = KEY_FORMAT, message = "must be 1-64 characters: letters, digits, '_' or '-'") String idempotencyKey,
-            @Nullable Principal principal) {
-        String actor = Callers.actor(principal);
-        String requestSha256 = Sha256.hex(canonicalJson(request));
+            @Body @Valid final SubmitAccreditationRequest request,
+            @Header(IDEMPOTENCY_KEY) @Nullable @Pattern(regexp = KEY_FORMAT, message = PathIds.ID_FORMAT_MESSAGE) final String idempotencyKey,
+            @Nullable final Principal principal) {
+        final String actor = Callers.actor(principal);
+        final String requestSha256 = Sha256.hex(canonicalJson(request));
         if (idempotencyKey != null) {
             idempotency.check(actor, "submit", idempotencyKey, requestSha256);
         }
-        SubmitResult result = commands.submit(new Submission(request.userId(),
+        final SubmitResult result = commands.submit(new Submission(request.userId(),
                 AccreditationType.valueOf(request.accreditationType()), request.document().name(),
                 request.document().mimeType(), request.document().content(), actor, idempotencyKey, requestSha256,
                 RequestIds.current().orElse(null)));
@@ -85,18 +88,18 @@ public class AdminAccreditationController {
 
     @Put("/{accreditationId}")
     public HttpResponse<AccreditationIdResponse> finalise(
-            @PathVariable String accreditationId,
-            @Body @Valid FinaliseAccreditationRequest request,
-            @Header(HttpHeaders.IF_MATCH) @Nullable String ifMatch,
-            @Header(IDEMPOTENCY_KEY) @Nullable @Pattern(regexp = KEY_FORMAT, message = "must be 1-64 characters: letters, digits, '_' or '-'") String idempotencyKey,
-            @Nullable Principal principal) {
-        UUID id = PathIds.accreditationId(accreditationId);
-        OptionalLong expectedVersion = parseIfMatch(ifMatch);
-        String actor = Callers.actor(principal);
+            @PathVariable final String accreditationId,
+            @Body @Valid final FinaliseAccreditationRequest request,
+            @Header(HttpHeaders.IF_MATCH) @Nullable final String ifMatch,
+            @Header(IDEMPOTENCY_KEY) @Nullable @Pattern(regexp = KEY_FORMAT, message = PathIds.ID_FORMAT_MESSAGE) final String idempotencyKey,
+            @Nullable final Principal principal) {
+        final UUID id = PathIds.accreditationId(accreditationId);
+        final OptionalLong expectedVersion = parseIfMatch(ifMatch);
+        final String actor = Callers.actor(principal);
         if (idempotencyKey != null) {
             idempotency.check(actor, "finalise:" + id, idempotencyKey, Sha256.hex(canonicalJson(request)));
         }
-        FinaliseResult result = commands.finalise(id, Outcome.valueOf(request.outcome()), expectedVersion, actor,
+        final FinaliseResult result = commands.finalise(id, Outcome.valueOf(request.outcome()), expectedVersion, actor,
                 RequestIds.current().orElse(null));
         return switch (result) {
             case FinaliseResult.Applied applied -> HttpResponse.ok(new AccreditationIdResponse(id))
@@ -114,11 +117,11 @@ public class AdminAccreditationController {
         };
     }
 
-    private static OptionalLong parseIfMatch(@Nullable String ifMatch) {
+    private static OptionalLong parseIfMatch(@Nullable final String ifMatch) {
         if (ifMatch == null || ifMatch.isBlank() || ifMatch.strip().equals("*")) {
             return OptionalLong.empty();
         }
-        var matcher = VERSION_TAG.matcher(ifMatch.strip());
+        final var matcher = VERSION_TAG.matcher(ifMatch.strip());
         if (!matcher.matches()) {
             throw ApiException.invalidField("If-Match", ErrorCodes.INVALID_VALUE,
                     "must be the version from the ETag, for example \"2\"");
@@ -127,7 +130,7 @@ public class AdminAccreditationController {
     }
 
     // Re-serialising the parsed body ignores whitespace and field order, so equivalent retries hash the same
-    private byte[] canonicalJson(Object request) {
+    private byte[] canonicalJson(final Object request) {
         try {
             return json.writeValueAsBytes(request);
         } catch (IOException e) {

@@ -73,9 +73,9 @@ class PersistenceIntegrationTest extends IntegrationTest {
 
         @Test
         void savesAndLocksAnAccreditation() {
-            AccreditationRow saved = inWriteDb(() -> accreditations.save(pending(USER, "key-1")));
+            final AccreditationRow saved = inWriteDb(() -> accreditations.save(pending(USER, "key-1")));
 
-            AccreditationRow locked = inWriteDb(() -> accreditations.findByIdForUpdate(saved.id()).orElseThrow());
+            final AccreditationRow locked = inWriteDb(() -> accreditations.findByIdForUpdate(saved.id()).orElseThrow());
 
             assertThat(locked).isEqualTo(saved);
             assertThat(locked.toDomain().status()).isEqualTo(PENDING);
@@ -84,9 +84,9 @@ class PersistenceIntegrationTest extends IntegrationTest {
 
         @Test
         void storesIdsAsSixteenBigEndianBytes() {
-            AccreditationRow saved = inWriteDb(() -> accreditations.save(pending(USER, null)));
+            final AccreditationRow saved = inWriteDb(() -> accreditations.save(pending(USER, null)));
 
-            String hex = writeTx.executeRead(s -> queryString(s.getConnection(),
+            final String hex = writeTx.executeRead(s -> queryString(s.getConnection(),
                     "SELECT HEX(id) FROM accreditations"));
 
             assertThat(hex).isEqualTo(saved.id().toString().replace("-", "").toUpperCase());
@@ -94,13 +94,13 @@ class PersistenceIntegrationTest extends IntegrationTest {
 
         @Test
         void updatesStateAndKeepsCreationColumns() {
-            AccreditationRow saved = inWriteDb(() -> accreditations.save(pending(USER, "key-1")));
-            Instant later = T0.plusSeconds(60);
+            final AccreditationRow saved = inWriteDb(() -> accreditations.save(pending(USER, "key-1")));
+            final Instant later = T0.plusSeconds(60);
 
             inWriteDb(() -> accreditations.update(new AccreditationRow(saved.id(), USER, BY_INCOME, CONFIRMED,
                     2, "admin", "key-1", saved.requestSha256(), T0, later, "reviewer")));
 
-            AccreditationRow reloaded = inWriteDb(() -> accreditations.findById(saved.id()).orElseThrow());
+            final AccreditationRow reloaded = inWriteDb(() -> accreditations.findById(saved.id()).orElseThrow());
             assertThat(reloaded.status()).isEqualTo(CONFIRMED);
             assertThat(reloaded.version()).isEqualTo(2);
             assertThat(reloaded.updatedAt()).isEqualTo(later);
@@ -119,7 +119,7 @@ class PersistenceIntegrationTest extends IntegrationTest {
 
         @Test
         void allowsANewPendingOnceThePreviousOneIsDecided() {
-            AccreditationRow first = inWriteDb(() -> accreditations.save(pending(USER, null)));
+            final AccreditationRow first = inWriteDb(() -> accreditations.save(pending(USER, null)));
             inWriteDb(() -> accreditations.update(withStatus(first, FAILED)));
 
             inWriteDb(() -> accreditations.save(pending(USER, null)));
@@ -143,7 +143,7 @@ class PersistenceIntegrationTest extends IntegrationTest {
             assertThatThrownBy(() -> inWriteDb(() -> accreditations.save(pending("otherUser", "key-1"))))
                     .satisfies(e -> assertThat(DuplicateKeys.violatedKey(e)).contains("uq_accreditations_idempotency_key"));
 
-            AccreditationRow otherCaller = new AccreditationRow(ids.next(), "otherUser", BY_INCOME, PENDING, 1,
+            final AccreditationRow otherCaller = new AccreditationRow(ids.next(), "otherUser", BY_INCOME, PENDING, 1,
                     "another-admin", "key-1", "f".repeat(64), T0, T0, "another-admin");
             inWriteDb(() -> accreditations.save(otherCaller));
             assertThat(inWriteDb(() -> accreditations.findByCreatedByAndIdempotencyKey("another-admin", "key-1")))
@@ -152,13 +152,13 @@ class PersistenceIntegrationTest extends IntegrationTest {
 
         @Test
         void storesTheDocumentApartFromTheStatus() {
-            AccreditationRow saved = inWriteDb(() -> accreditations.save(pending(USER, null)));
-            byte[] pdf = "%PDF-1.7 test".getBytes();
+            final AccreditationRow saved = inWriteDb(() -> accreditations.save(pending(USER, null)));
+            final byte[] pdf = "%PDF-1.7 test".getBytes();
 
             inWriteDb(() -> documents.save(new DocumentRow(saved.id(), "income.pdf", "application/pdf",
                     pdf.length, "a".repeat(64), pdf, T0)));
 
-            DocumentRow reloaded = inWriteDb(() -> documents.findById(saved.id()).orElseThrow());
+            final DocumentRow reloaded = inWriteDb(() -> documents.findById(saved.id()).orElseThrow());
             assertThat(reloaded.content()).isEqualTo(pdf);
             assertThat(reloaded.fileName()).isEqualTo("income.pdf");
         }
@@ -178,31 +178,31 @@ class PersistenceIntegrationTest extends IntegrationTest {
 
         @Test
         void pagesThroughConfirmedRowsOlderThanTheCutoffWithoutRepeats() {
-            Instant cutoff = T0.plus(30, ChronoUnit.DAYS);
+            final Instant cutoff = T0.plus(30, ChronoUnit.DAYS);
             // Five eligible rows, two of them sharing an updated_at, to exercise the id tie-break
-            List<AccreditationRow> eligible = List.of(
+            final List<AccreditationRow> eligible = List.of(
                     confirmedAt("u1", T0), confirmedAt("u2", T0.plusSeconds(1)), confirmedAt("u3", T0.plusSeconds(1)),
                     confirmedAt("u4", T0.plusSeconds(2)), confirmedAt("u5", T0.plusSeconds(3)));
-            AccreditationRow tooRecent = confirmedAt("u6", cutoff);
-            AccreditationRow stillPending = pending("u7", null);
+            final AccreditationRow tooRecent = confirmedAt("u6", cutoff);
+            final AccreditationRow stillPending = pending("u7", null);
             inWriteDb(() -> {
                 eligible.forEach(accreditations::save);
                 accreditations.save(tooRecent);
                 return accreditations.save(stillPending);
             });
 
-            List<UUID> seen = new ArrayList<>();
+            final List<UUID> seen = new ArrayList<>();
             Instant afterUpdatedAt = Instant.EPOCH;
             UUID afterId = new UUID(0, 0);
             while (true) {
-                Instant a = afterUpdatedAt;
-                UUID b = afterId;
-                List<AccreditationRow> page = inWriteDb(() -> accreditations.findExpiryCandidates(cutoff, a, b, 2));
+                final Instant a = afterUpdatedAt;
+                final UUID b = afterId;
+                final List<AccreditationRow> page = inWriteDb(() -> accreditations.findExpiryCandidates(cutoff, a, b, 2));
                 if (page.isEmpty()) {
                     break;
                 }
                 page.forEach(r -> seen.add(r.id()));
-                AccreditationRow last = page.getLast();
+                final AccreditationRow last = page.getLast();
                 afterUpdatedAt = last.updatedAt();
                 afterId = last.id();
             }
@@ -217,14 +217,14 @@ class PersistenceIntegrationTest extends IntegrationTest {
 
         @Test
         void returnsUnpublishedEventsInInsertOrderAndMarksThemPublished() {
-            List<OutboxEventRow> saved = inWriteDb(() -> List.of(
+            final List<OutboxEventRow> saved = inWriteDb(() -> List.of(
                     outbox.save(event()), outbox.save(event()), outbox.save(event())));
 
-            List<OutboxEventRow> batch = inWriteDb(() -> outbox.findUnpublished(2));
+            final List<OutboxEventRow> batch = inWriteDb(() -> outbox.findUnpublished(2));
             assertThat(batch).extracting(OutboxEventRow::id).containsExactly(saved.get(0).id(), saved.get(1).id());
             assertThat(batch.getFirst().eventId()).isEqualTo(saved.getFirst().eventId());
 
-            int marked = inWriteDb(() -> outbox.markPublished(List.of(saved.get(0).id(), saved.get(1).id()),
+            final int marked = inWriteDb(() -> outbox.markPublished(List.of(saved.get(0).id(), saved.get(1).id()),
                     T0.plusSeconds(1)));
 
             assertThat(marked).isEqualTo(2);
@@ -235,15 +235,15 @@ class PersistenceIntegrationTest extends IntegrationTest {
 
         @Test
         void deletesOnlyEventsPublishedBeforeTheCutoff() {
-            List<OutboxEventRow> saved = inWriteDb(() -> List.of(
+            final List<OutboxEventRow> saved = inWriteDb(() -> List.of(
                     outbox.save(event()), outbox.save(event()), outbox.save(event())));
             inWriteDb(() -> outbox.markPublished(List.of(saved.get(0).id()), T0));
             inWriteDb(() -> outbox.markPublished(List.of(saved.get(1).id()), T0.plus(10, ChronoUnit.DAYS)));
-            Instant cutoff = T0.plus(7, ChronoUnit.DAYS);
+            final Instant cutoff = T0.plus(7, ChronoUnit.DAYS);
 
-            List<Long> old = inWriteDb(() -> outbox.findPublishedBefore(cutoff, 100));
+            final List<Long> old = inWriteDb(() -> outbox.findPublishedBefore(cutoff, 100));
             // The unpublished and the recent ids are passed too: the repeated predicate must protect them
-            int deleted = inWriteDb(() -> outbox.deletePublishedBefore(
+            final int deleted = inWriteDb(() -> outbox.deletePublishedBefore(
                     List.of(old.getFirst(), saved.get(1).id(), saved.get(2).id()), cutoff));
 
             assertThat(old).containsExactly(saved.get(0).id());
@@ -262,17 +262,17 @@ class PersistenceIntegrationTest extends IntegrationTest {
 
         @Test
         void appliesOnlyNewerVersions() {
-            UUID id = ids.next();
+            final UUID id = ids.next();
             inReadDb(() -> views.save(new AccreditationViewRow(id, USER, BY_INCOME, PENDING, 1, T0, T0)));
 
-            int applied = inReadDb(() -> views.applyIfNewer(id, EXPIRED, 3, T0.plusSeconds(3)));
-            int late = inReadDb(() -> views.applyIfNewer(id, CONFIRMED, 2, T0.plusSeconds(2)));
-            int duplicate = inReadDb(() -> views.applyIfNewer(id, EXPIRED, 3, T0.plusSeconds(3)));
+            final int applied = inReadDb(() -> views.applyIfNewer(id, EXPIRED, 3, T0.plusSeconds(3)));
+            final int late = inReadDb(() -> views.applyIfNewer(id, CONFIRMED, 2, T0.plusSeconds(2)));
+            final int duplicate = inReadDb(() -> views.applyIfNewer(id, EXPIRED, 3, T0.plusSeconds(3)));
 
             assertThat(applied).isEqualTo(1);
             assertThat(late).isZero();
             assertThat(duplicate).isZero();
-            AccreditationViewRow view = inReadDb(() -> views.findById(id).orElseThrow());
+            final AccreditationViewRow view = inReadDb(() -> views.findById(id).orElseThrow());
             assertThat(view.status()).isEqualTo(EXPIRED);
             assertThat(view.version()).isEqualTo(3);
             assertThat(view.submittedAt()).isEqualTo(T0);
@@ -285,8 +285,8 @@ class PersistenceIntegrationTest extends IntegrationTest {
 
         @Test
         void listsOnlyTheRequestedUsersAccreditations() {
-            UUID first = ids.next();
-            UUID second = ids.next();
+            final UUID first = ids.next();
+            final UUID second = ids.next();
             inReadDb(() -> {
                 views.save(new AccreditationViewRow(second, USER, BY_INCOME, PENDING, 1, T0, T0));
                 views.save(new AccreditationViewRow(first, USER, BY_INCOME, FAILED, 2, T0, T0));
@@ -300,10 +300,10 @@ class PersistenceIntegrationTest extends IntegrationTest {
 
         @Test
         void keepsOneHistoryEntryPerEvent() {
-            UUID accreditationId = ids.next();
-            StatusHistoryRow submitted = new StatusHistoryRow(ids.next(), accreditationId, 1, "AccreditationSubmitted",
+            final UUID accreditationId = ids.next();
+            final StatusHistoryRow submitted = new StatusHistoryRow(ids.next(), accreditationId, 1, "AccreditationSubmitted",
                     null, PENDING, "admin", T0);
-            StatusHistoryRow confirmed = new StatusHistoryRow(ids.next(), accreditationId, 2, "AccreditationConfirmed",
+            final StatusHistoryRow confirmed = new StatusHistoryRow(ids.next(), accreditationId, 2, "AccreditationConfirmed",
                     PENDING, CONFIRMED, "reviewer", T0.plusSeconds(1));
             inReadDb(() -> {
                 history.save(confirmed);
@@ -318,12 +318,12 @@ class PersistenceIntegrationTest extends IntegrationTest {
 
         @Test
         void recognisesARedeliveredEventByItsId() {
-            UUID accreditationId = ids.next();
-            StatusHistoryRow entry = new StatusHistoryRow(ids.next(), accreditationId, 1, "AccreditationSubmitted",
+            final UUID accreditationId = ids.next();
+            final StatusHistoryRow entry = new StatusHistoryRow(ids.next(), accreditationId, 1, "AccreditationSubmitted",
                     null, PENDING, "admin", T0);
             inReadDb(() -> history.save(entry));
 
-            StatusHistoryRow sameEventOtherVersion = new StatusHistoryRow(entry.eventId(), accreditationId, 7,
+            final StatusHistoryRow sameEventOtherVersion = new StatusHistoryRow(entry.eventId(), accreditationId, 7,
                     "AccreditationSubmitted", null, PENDING, "admin", T0);
             assertThatThrownBy(() -> inReadDb(() -> history.save(sameEventOtherVersion)))
                     .satisfies(e -> assertThat(DuplicateKeys.violatedKey(e))
@@ -352,25 +352,31 @@ class PersistenceIntegrationTest extends IntegrationTest {
         }
     }
 
-    private <T> T inWriteDb(Supplier<T> work) {
+    private <T> T inWriteDb(final Supplier<T> work) {
         return writeTx.executeWrite(s -> work.get());
     }
 
-    private <T> T inReadDb(Supplier<T> work) {
+    private <T> T inReadDb(final Supplier<T> work) {
         return readTx.executeWrite(s -> work.get());
     }
 
-    private AccreditationRow pending(String userId, String idempotencyKey) {
+    private AccreditationRow pending(
+            final String userId,
+            final String idempotencyKey) {
         return new AccreditationRow(ids.next(), userId, BY_INCOME, PENDING, 1, "admin", idempotencyKey,
                 idempotencyKey == null ? null : "e".repeat(64), T0, T0, "admin");
     }
 
-    private AccreditationRow confirmedAt(String userId, Instant updatedAt) {
+    private AccreditationRow confirmedAt(
+            final String userId,
+            final Instant updatedAt) {
         return new AccreditationRow(ids.next(), userId, BY_INCOME, CONFIRMED, 2, "admin", null, null,
                 T0, updatedAt, "reviewer");
     }
 
-    private static AccreditationRow withStatus(AccreditationRow row, AccreditationStatus status) {
+    private static AccreditationRow withStatus(
+            final AccreditationRow row,
+            final AccreditationStatus status) {
         return new AccreditationRow(row.id(), row.userId(), row.accreditationType(), status, row.version() + 1,
                 row.createdBy(), row.idempotencyKey(), row.requestSha256(), row.createdAt(), row.updatedAt(), "reviewer");
     }
@@ -383,7 +389,9 @@ class PersistenceIntegrationTest extends IntegrationTest {
         return Long.parseLong(writeTx.executeRead(s -> queryString(s.getConnection(), "SELECT COUNT(*) FROM accreditations")));
     }
 
-    private static Void execute(Connection connection, String... sql) {
+    private static Void execute(
+            final Connection connection,
+            final String... sql) {
         try (Statement statement = connection.createStatement()) {
             for (String s : sql) {
                 statement.execute(s);
@@ -394,7 +402,9 @@ class PersistenceIntegrationTest extends IntegrationTest {
         }
     }
 
-    private static String queryString(Connection connection, String sql) {
+    private static String queryString(
+            final Connection connection,
+            final String sql) {
         try (Statement statement = connection.createStatement(); var rs = statement.executeQuery(sql)) {
             rs.next();
             return rs.getString(1);

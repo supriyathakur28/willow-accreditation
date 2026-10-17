@@ -34,7 +34,7 @@ public record AccreditationRow(
     }
 
     /** The same row moved to the state the decider produced; creation columns are kept. */
-    public AccreditationRow withState(Accreditation next) {
+    public AccreditationRow withState(final Accreditation next) {
         return new AccreditationRow(id, userId, accreditationType, next.status(), next.version(),
                 createdBy, idempotencyKey, requestSha256, createdAt, next.updatedAt(), next.updatedBy());
     }

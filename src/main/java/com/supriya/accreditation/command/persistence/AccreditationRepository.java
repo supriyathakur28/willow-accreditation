@@ -27,7 +27,9 @@ public interface AccreditationRepository extends GenericRepository<Accreditation
 
     Optional<AccreditationRow> findById(UUID id);
 
-    Optional<AccreditationRow> findByCreatedByAndIdempotencyKey(String createdBy, String idempotencyKey);
+    Optional<AccreditationRow> findByCreatedByAndIdempotencyKey(
+            String createdBy,
+            String idempotencyKey);
 
     /**
      * One page of the expiry scan, keyset-paged on (updated_at, id) so a page never repeats or skips rows.

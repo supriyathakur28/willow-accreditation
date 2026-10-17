@@ -35,21 +35,23 @@ public class ClientAccreditationController {
     private final AccreditationViewRepository views;
     private final TransactionOperations<Connection> transactions;
 
-    ClientAccreditationController(AccreditationViewRepository views,
-                                  @Named("read") TransactionOperations<Connection> transactions) {
+    ClientAccreditationController(
+            final AccreditationViewRepository views,
+            @Named("read") final TransactionOperations<Connection> transactions) {
         this.views = views;
         this.transactions = transactions;
     }
 
     /** A user with no accreditations, known or not, gets an empty map: the endpoint does not reveal who exists. */
     @Get("/user/{userId}/accreditation")
-    public UserAccreditationsResponse accreditations(@PathVariable String userId,
-                                                     @Nullable Principal principal) {
-        String validUserId = PathIds.userId(userId);
+    public UserAccreditationsResponse accreditations(
+            @PathVariable final String userId,
+            @Nullable final Principal principal) {
+        final String validUserId = PathIds.userId(userId);
         Callers.requireMayRead(principal, validUserId);
-        List<AccreditationViewRow> rows = transactions.executeRead(
+        final List<AccreditationViewRow> rows = transactions.executeRead(
                 status -> views.findByUserIdOrderByAccreditationId(validUserId));
-        Map<String, UserAccreditationsResponse.Entry> statuses = new LinkedHashMap<>();
+        final Map<String, UserAccreditationsResponse.Entry> statuses = new LinkedHashMap<>();
         for (AccreditationViewRow row : rows) {
             statuses.put(row.accreditationId().toString(),
                     new UserAccreditationsResponse.Entry(row.accreditationType(), row.status()));

@@ -19,7 +19,7 @@ public class KafkaClients {
 
     private final String bootstrapServers;
 
-    KafkaClients(@Value("${kafka.bootstrap.servers}") String bootstrapServers) {
+    KafkaClients(@Value("${kafka.bootstrap.servers}") final String bootstrapServers) {
         this.bootstrapServers = bootstrapServers;
     }
 
@@ -43,7 +43,7 @@ public class KafkaClients {
                 ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class));
     }
 
-    public KafkaConsumer<String, String> newConsumer(String groupId) {
+    public KafkaConsumer<String, String> newConsumer(final String groupId) {
         return new KafkaConsumer<>(Map.of(
                 ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers,
                 ConsumerConfig.GROUP_ID_CONFIG, groupId,

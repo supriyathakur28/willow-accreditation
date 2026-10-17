@@ -27,20 +27,20 @@ public class UuidV7Generator {
     /** Last issued (millis << 12 | counter); only ever moves forward, so IDs from one instance are strictly increasing. */
     private final AtomicLong lastTimestampAndCounter = new AtomicLong();
 
-    public UuidV7Generator(Clock clock) {
+    public UuidV7Generator(final Clock clock) {
         this.clock = clock;
     }
 
     public UUID next() {
-        long nowShifted = clock.millis() << COUNTER_BITS;
+        final long nowShifted = clock.millis() << COUNTER_BITS;
         // Same millisecond (or clock moved back): increment the counter; a full counter rolls into the next millisecond.
-        long timestampAndCounter = lastTimestampAndCounter.updateAndGet(last -> Math.max(nowShifted, last + 1));
+        final long timestampAndCounter = lastTimestampAndCounter.updateAndGet(last -> Math.max(nowShifted, last + 1));
 
-        long millis = timestampAndCounter >>> COUNTER_BITS;
-        long counter = timestampAndCounter & ((1L << COUNTER_BITS) - 1);
+        final long millis = timestampAndCounter >>> COUNTER_BITS;
+        final long counter = timestampAndCounter & ((1L << COUNTER_BITS) - 1);
 
-        long mostSignificant = (millis << 16) | VERSION_7 | counter;
-        long leastSignificant = (random.nextLong() & RANDOM_62_BITS) | VARIANT_RFC;
+        final long mostSignificant = (millis << 16) | VERSION_7 | counter;
+        final long leastSignificant = (random.nextLong() & RANDOM_62_BITS) | VARIANT_RFC;
         return new UUID(mostSignificant, leastSignificant);
     }
 }

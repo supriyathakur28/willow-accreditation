@@ -26,7 +26,11 @@ public interface AccreditationViewRepository extends GenericRepository<Accredita
             UPDATE accreditation_views
             SET status = :status, version = :version, updated_at = :updatedAt
             WHERE accreditation_id = :accreditationId AND version < :version""")
-    int applyIfNewer(UUID accreditationId, AccreditationStatus status, long version, Instant updatedAt);
+    int applyIfNewer(
+            UUID accreditationId,
+            AccreditationStatus status,
+            long version,
+            Instant updatedAt);
 
     Optional<AccreditationViewRow> findById(UUID accreditationId);
 

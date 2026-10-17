@@ -19,11 +19,11 @@ public final class RequestIds {
     private RequestIds() {
     }
 
-    static String acceptOrGenerate(String supplied) {
+    static String acceptOrGenerate(final String supplied) {
         return supplied != null && SAFE.matcher(supplied).matches() ? supplied : UUID.randomUUID().toString();
     }
 
-    public static Optional<String> of(HttpRequest<?> request) {
+    public static Optional<String> of(final HttpRequest<?> request) {
         return request.getAttribute(ATTRIBUTE, String.class);
     }
 

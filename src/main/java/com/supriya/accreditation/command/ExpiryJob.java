@@ -38,7 +38,10 @@ public class ExpiryJob {
     private static final Logger log = LoggerFactory.getLogger(ExpiryJob.class);
     static final int PAGE_SIZE = 500;
 
-    public record Run(int expired, int skipped, int failed) {
+    public record Run(
+            int expired,
+            int skipped,
+            int failed) {
     }
 
     private final AccreditationRepository accreditations;
@@ -48,10 +51,13 @@ public class ExpiryJob {
     private final Duration maxAge;
     private final int parallelism;
 
-    ExpiryJob(AccreditationRepository accreditations, AccreditationCommandService commands,
-              @Named("write") TransactionOperations<Connection> transactions, Clock clock,
-              @Value("${expiry.max-age:30d}") Duration maxAge,
-              @Value("${datasources.write.maximum-pool-size:10}") int writePoolSize) {
+    ExpiryJob(
+            final AccreditationRepository accreditations,
+            final AccreditationCommandService commands,
+            @Named("write") final TransactionOperations<Connection> transactions,
+            final Clock clock,
+            @Value("${expiry.max-age:30d}") final Duration maxAge,
+            @Value("${datasources.write.maximum-pool-size:10}") final int writePoolSize) {
         this.accreditations = accreditations;
         this.commands = commands;
         this.transactions = transactions;
@@ -63,7 +69,7 @@ public class ExpiryJob {
     @Scheduled(fixedDelay = "${expiry.interval:1h}", initialDelay = "${expiry.initial-delay:1m}")
     @ScheduledJobLock
     public void scheduledRun() {
-        Run run = expireStaleConfirmations();
+        final Run run = expireStaleConfirmations();
         if (run.expired() + run.failed() > 0) {
             log.info("Expiry run: {} expired, {} skipped, {} failed", run.expired(), run.skipped(), run.failed());
         }
@@ -71,23 +77,23 @@ public class ExpiryJob {
 
     /** One full pass. The cutoff is fixed once per run, from the injected clock. */
     public Run expireStaleConfirmations() {
-        Instant cutoff = clock.instant().minus(maxAge);
+        final Instant cutoff = clock.instant().minus(maxAge);
         int expired = 0;
         int skipped = 0;
         int failed = 0;
         Instant afterUpdatedAt = Instant.EPOCH;
         UUID afterId = new UUID(0, 0);
-        Semaphore permits = new Semaphore(parallelism);
+        final Semaphore permits = new Semaphore(parallelism);
         try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
             while (true) {
-                Instant pageAfterUpdatedAt = afterUpdatedAt;
-                UUID pageAfterId = afterId;
-                List<AccreditationRow> page = transactions.executeRead(status ->
+                final Instant pageAfterUpdatedAt = afterUpdatedAt;
+                final UUID pageAfterId = afterId;
+                final List<AccreditationRow> page = transactions.executeRead(status ->
                         accreditations.findExpiryCandidates(cutoff, pageAfterUpdatedAt, pageAfterId, PAGE_SIZE));
                 if (page.isEmpty()) {
                     break;
                 }
-                List<Future<ExpiryOutcome>> results = new ArrayList<>(page.size());
+                final List<Future<ExpiryOutcome>> results = new ArrayList<>(page.size());
                 for (AccreditationRow candidate : page) {
                     results.add(executor.submit(() -> {
                         permits.acquire();
@@ -115,7 +121,7 @@ public class ExpiryJob {
                         log.warn("Could not expire {}: {}", page.get(i).id(), e.toString());
                     }
                 }
-                AccreditationRow last = page.getLast();
+                final AccreditationRow last = page.getLast();
                 afterUpdatedAt = last.updatedAt();
                 afterId = last.id();
             }

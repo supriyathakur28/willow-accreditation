@@ -40,8 +40,14 @@ public sealed interface AccreditationEvent permits AccreditationEvent.Accreditat
     }
 
     record AccreditationSubmitted(
-            UUID eventId, UUID accreditationId, String userId, AccreditationType accreditationType,
-            long version, Instant submittedAt, Instant occurredAt, String performedBy,
+            UUID eventId,
+            UUID accreditationId,
+            String userId,
+            AccreditationType accreditationType,
+            long version,
+            Instant submittedAt,
+            Instant occurredAt,
+            String performedBy,
             String documentSha256) implements AccreditationEvent {
 
         @Override
@@ -56,8 +62,14 @@ public sealed interface AccreditationEvent permits AccreditationEvent.Accreditat
     }
 
     record AccreditationConfirmed(
-            UUID eventId, UUID accreditationId, String userId, AccreditationType accreditationType,
-            AccreditationStatus previousStatus, long version, Instant submittedAt, Instant occurredAt,
+            UUID eventId,
+            UUID accreditationId,
+            String userId,
+            AccreditationType accreditationType,
+            AccreditationStatus previousStatus,
+            long version,
+            Instant submittedAt,
+            Instant occurredAt,
             String performedBy) implements AccreditationEvent {
 
         @Override
@@ -67,8 +79,14 @@ public sealed interface AccreditationEvent permits AccreditationEvent.Accreditat
     }
 
     record AccreditationFailed(
-            UUID eventId, UUID accreditationId, String userId, AccreditationType accreditationType,
-            AccreditationStatus previousStatus, long version, Instant submittedAt, Instant occurredAt,
+            UUID eventId,
+            UUID accreditationId,
+            String userId,
+            AccreditationType accreditationType,
+            AccreditationStatus previousStatus,
+            long version,
+            Instant submittedAt,
+            Instant occurredAt,
             String performedBy) implements AccreditationEvent {
 
         @Override
@@ -78,8 +96,14 @@ public sealed interface AccreditationEvent permits AccreditationEvent.Accreditat
     }
 
     record AccreditationExpired(
-            UUID eventId, UUID accreditationId, String userId, AccreditationType accreditationType,
-            AccreditationStatus previousStatus, long version, Instant submittedAt, Instant occurredAt,
+            UUID eventId,
+            UUID accreditationId,
+            String userId,
+            AccreditationType accreditationType,
+            AccreditationStatus previousStatus,
+            long version,
+            Instant submittedAt,
+            Instant occurredAt,
             String performedBy) implements AccreditationEvent {
 
         @Override

@@ -47,7 +47,9 @@ public abstract class IntegrationTest implements TestPropertyProvider {
         createTopic("user.events.v1", 3);
     }
 
-    protected static void createTopic(String name, int partitions) {
+    protected static void createTopic(
+            final String name,
+            final int partitions) {
         try (Admin admin = Admin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA.getBootstrapServers()))) {
             admin.createTopics(List.of(new NewTopic(name, partitions, (short) 1))).all().get();
         } catch (Exception e) {
@@ -57,7 +59,7 @@ public abstract class IntegrationTest implements TestPropertyProvider {
 
     @Override
     public Map<String, String> getProperties() {
-        String mysql = "jdbc:mysql://" + MYSQL.getHost() + ":" + MYSQL.getMappedPort(3306) + "/";
+        final String mysql = "jdbc:mysql://" + MYSQL.getHost() + ":" + MYSQL.getMappedPort(3306) + "/";
         return Map.of(
                 "datasources.write.url", mysql + "accreditation_write",
                 "datasources.read.url", mysql + "accreditation_read",
@@ -74,12 +76,14 @@ public abstract class IntegrationTest implements TestPropertyProvider {
     }
 
     /** What the users consumer does when a record for a new user arrives. */
-    protected static void registerUser(String userId) {
+    protected static void registerUser(final String userId) {
         sql("accreditation_write", "INSERT INTO known_users (user_id, registered_at) VALUES ('" + userId + "', NOW(6))");
     }
 
-    protected static void sql(String database, String... statements) {
-        String url = "jdbc:mysql://" + MYSQL.getHost() + ":" + MYSQL.getMappedPort(3306) + "/" + database;
+    protected static void sql(
+            final String database,
+            final String... statements) {
+        final String url = "jdbc:mysql://" + MYSQL.getHost() + ":" + MYSQL.getMappedPort(3306) + "/" + database;
         try (Connection connection = DriverManager.getConnection(url, "root", MYSQL.getPassword());
              Statement statement = connection.createStatement()) {
             for (String sql : statements) {
@@ -91,14 +95,16 @@ public abstract class IntegrationTest implements TestPropertyProvider {
     }
 
     /** Rows as column-label maps; handy for asserting on what the application wrote. */
-    protected static List<Map<String, Object>> rows(String database, String query) {
-        String url = "jdbc:mysql://" + MYSQL.getHost() + ":" + MYSQL.getMappedPort(3306) + "/" + database;
+    protected static List<Map<String, Object>> rows(
+            final String database,
+            final String query) {
+        final String url = "jdbc:mysql://" + MYSQL.getHost() + ":" + MYSQL.getMappedPort(3306) + "/" + database;
         try (Connection connection = DriverManager.getConnection(url, "root", MYSQL.getPassword());
              Statement statement = connection.createStatement();
              ResultSet rs = statement.executeQuery(query)) {
-            List<Map<String, Object>> result = new ArrayList<>();
+            final List<Map<String, Object>> result = new ArrayList<>();
             while (rs.next()) {
-                Map<String, Object> row = new LinkedHashMap<>();
+                final Map<String, Object> row = new LinkedHashMap<>();
                 for (int i = 1; i <= rs.getMetaData().getColumnCount(); i++) {
                     row.put(rs.getMetaData().getColumnLabel(i), rs.getObject(i));
                 }

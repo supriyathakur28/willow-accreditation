@@ -21,7 +21,10 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 
-/** Maps exceptions to the {@link ApiError} envelope. Framework errors (404 route, 405, 413, bad JSON) go through {@link ApiErrorBodyProvider}. */
+/**
+ * Maps exceptions to the {@link ApiError} envelope. Framework errors (404 route, 405, 413, bad JSON) go through
+ * {@link ApiErrorBodyProvider}.
+ */
 final class ApiExceptionHandlers {
 
     private static final String RETRY_AFTER_SECONDS = "1";
@@ -32,7 +35,9 @@ final class ApiExceptionHandlers {
     @Singleton
     static class ApiExceptionHandler implements ExceptionHandler<ApiException, HttpResponse<ApiError>> {
         @Override
-        public HttpResponse<ApiError> handle(HttpRequest request, ApiException e) {
+        public HttpResponse<ApiError> handle(
+                final HttpRequest request,
+                final ApiException e) {
             return HttpResponse.<ApiError>status(e.status()).body(e.toBody(RequestIds.of(request).orElse(null)));
         }
     }
@@ -45,8 +50,10 @@ final class ApiExceptionHandlers {
         private static final Set<String> REQUIRED_CONSTRAINTS = Set.of("NotNull", "NotBlank", "NotEmpty");
 
         @Override
-        public HttpResponse<ApiError> handle(HttpRequest request, ConstraintViolationException e) {
-            List<ApiError.InvalidField> fields = new ArrayList<>();
+        public HttpResponse<ApiError> handle(
+                final HttpRequest request,
+                final ConstraintViolationException e) {
+            final List<ApiError.InvalidField> fields = new ArrayList<>();
             for (ConstraintViolation<?> violation : e.getConstraintViolations()) {
                 fields.add(new ApiError.InvalidField(fieldName(violation.getPropertyPath()), errorFor(violation),
                         violation.getMessage()));
@@ -56,8 +63,8 @@ final class ApiExceptionHandlers {
                     RequestIds.of(request).orElse(null), fields, null));
         }
 
-        private static String errorFor(ConstraintViolation<?> violation) {
-            String constraint = violation.getConstraintDescriptor().getAnnotation().annotationType().getSimpleName();
+        private static String errorFor(final ConstraintViolation<?> violation) {
+            final String constraint = violation.getConstraintDescriptor().getAnnotation().annotationType().getSimpleName();
             if (REQUIRED_CONSTRAINTS.contains(constraint)) {
                 return ErrorCodes.REQUIRED;
             }
@@ -65,8 +72,8 @@ final class ApiExceptionHandlers {
         }
 
         // "submit.request.document.mimeType" -> "document.mime_type": the JSON name the caller sent
-        private static String fieldName(Path path) {
-            List<String> names = new ArrayList<>();
+        private static String fieldName(final Path path) {
+            final List<String> names = new ArrayList<>();
             for (Path.Node node : path) {
                 if (node.getKind() == ElementKind.PROPERTY) {
                     names.add(snakeCase(node.getName()));
@@ -83,7 +90,7 @@ final class ApiExceptionHandlers {
             return String.join(".", names);
         }
 
-        static String snakeCase(String camel) {
+        static String snakeCase(final String camel) {
             return camel.replaceAll("([a-z0-9])([A-Z])", "$1_$2").toLowerCase();
         }
     }
@@ -94,7 +101,9 @@ final class ApiExceptionHandlers {
         private static final Logger log = LoggerFactory.getLogger(ServiceUnavailableHandler.class);
 
         @Override
-        public HttpResponse<ApiError> handle(HttpRequest request, ServiceUnavailableException e) {
+        public HttpResponse<ApiError> handle(
+                final HttpRequest request,
+                final ServiceUnavailableException e) {
             log.warn("Answering 503: {}", e.getMessage(), e.getCause());
             return HttpResponse.<ApiError>status(HttpStatus.SERVICE_UNAVAILABLE)
                     .header("Retry-After", RETRY_AFTER_SECONDS)
@@ -111,7 +120,9 @@ final class ApiExceptionHandlers {
         private final ServiceUnavailableHandler unavailable = new ServiceUnavailableHandler();
 
         @Override
-        public HttpResponse<ApiError> handle(HttpRequest request, RuntimeException e) {
+        public HttpResponse<ApiError> handle(
+                final HttpRequest request,
+                final RuntimeException e) {
             if (TransientErrors.isTransient(e)) {
                 return unavailable.handle(request, new ServiceUnavailableException("A dependency is unavailable", e));
             }

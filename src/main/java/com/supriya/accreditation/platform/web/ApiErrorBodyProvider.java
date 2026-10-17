@@ -16,9 +16,11 @@ import jakarta.inject.Singleton;
 public class ApiErrorBodyProvider implements JsonErrorResponseBodyProvider<ApiError> {
 
     @Override
-    public ApiError body(ErrorContext context, HttpResponse<?> response) {
-        String requestId = RequestIds.of(context.getRequest()).orElse(null);
-        HttpStatus status = response.getStatus();
+    public ApiError body(
+            final ErrorContext context,
+            final HttpResponse<?> response) {
+        final String requestId = RequestIds.of(context.getRequest()).orElse(null);
+        final HttpStatus status = response.getStatus();
         return switch (status) {
             case BAD_REQUEST -> ApiError.of(ErrorCodes.VALIDATION_FAILED,
                     "Request body is missing, is not valid JSON, or has fields of the wrong type or unknown fields",

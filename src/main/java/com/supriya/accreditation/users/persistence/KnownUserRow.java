@@ -7,5 +7,7 @@ import java.time.Instant;
 
 /** A user the Users service has registered. */
 @MappedEntity("known_users")
-public record KnownUserRow(@Id String userId, Instant registeredAt) {
+public record KnownUserRow(
+        @Id String userId,
+        Instant registeredAt) {
 }

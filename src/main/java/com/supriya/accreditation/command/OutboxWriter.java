@@ -18,12 +18,16 @@ class OutboxWriter {
     private final OutboxRepository outbox;
     private final JsonMapper json;
 
-    OutboxWriter(OutboxRepository outbox, JsonMapper json) {
+    OutboxWriter(
+            final OutboxRepository outbox,
+            final JsonMapper json) {
         this.outbox = outbox;
         this.json = json;
     }
 
-    void append(AccreditationEvent event, @Nullable String requestId) {
+    void append(
+            final AccreditationEvent event,
+            @Nullable final String requestId) {
         String payload;
         try {
             payload = json.writeValueAsString(AccreditationEventMessage.from(event));

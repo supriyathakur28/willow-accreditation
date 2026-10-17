@@ -35,8 +35,8 @@ public record AccreditationEventMessage(
         String performedBy,
         @Nullable String documentSha256) {
 
-    public static AccreditationEventMessage from(AccreditationEvent event) {
-        String documentSha256 = event instanceof AccreditationSubmitted submitted ? submitted.documentSha256() : null;
+    public static AccreditationEventMessage from(final AccreditationEvent event) {
+        final String documentSha256 = event instanceof AccreditationSubmitted submitted ? submitted.documentSha256() : null;
         return new AccreditationEventMessage(event.eventId(), event.eventType(), AccreditationEvent.SCHEMA_VERSION,
                 event.accreditationId(), event.userId(), event.accreditationType(), event.previousStatus(),
                 event.status(), event.version(), event.submittedAt(), event.occurredAt(), event.performedBy(),

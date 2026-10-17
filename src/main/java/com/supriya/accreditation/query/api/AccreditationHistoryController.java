@@ -28,16 +28,17 @@ public class AccreditationHistoryController {
     private final StatusHistoryRepository history;
     private final TransactionOperations<Connection> transactions;
 
-    AccreditationHistoryController(StatusHistoryRepository history,
-                                   @Named("read") TransactionOperations<Connection> transactions) {
+    AccreditationHistoryController(
+            final StatusHistoryRepository history,
+            @Named("read") final TransactionOperations<Connection> transactions) {
         this.history = history;
         this.transactions = transactions;
     }
 
     @Get("/user/accreditation/{accreditationId}/history")
-    public AccreditationHistoryResponse history(@PathVariable String accreditationId) {
-        UUID id = PathIds.accreditationId(accreditationId);
-        List<StatusHistoryRow> rows = transactions.executeRead(status -> history.findByAccreditationIdOrderByVersion(id));
+    public AccreditationHistoryResponse history(@PathVariable final String accreditationId) {
+        final UUID id = PathIds.accreditationId(accreditationId);
+        final List<StatusHistoryRow> rows = transactions.executeRead(status -> history.findByAccreditationIdOrderByVersion(id));
         if (rows.isEmpty()) {
             throw PathIds.accreditationNotFound(accreditationId);
         }

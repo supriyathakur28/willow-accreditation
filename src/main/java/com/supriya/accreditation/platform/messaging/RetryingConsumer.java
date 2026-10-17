@@ -42,18 +42,31 @@ public final class RetryingConsumer implements Runnable {
 
     private static final Logger log = LoggerFactory.getLogger(RetryingConsumer.class);
 
-    public record Settings(String groupId, String topic, String deadLetterTopic, Duration pollTimeout,
-                           Duration initialBackoff, Duration maxBackoff, int maxAttemptsForUnknownErrors,
-                           Duration stuckAlertAfter) {
+    public record Settings(
+            String groupId,
+            String topic,
+            String deadLetterTopic,
+            Duration pollTimeout,
+            Duration initialBackoff,
+            Duration maxBackoff,
+            int maxAttemptsForUnknownErrors,
+            Duration stuckAlertAfter) {
 
-        public static Settings defaults(String groupId, String topic) {
+        public static Settings defaults(
+                final String groupId,
+                final String topic) {
             return new Settings(groupId, topic, Topics.deadLetter(topic, groupId), Duration.ofMillis(500),
                     Duration.ofMillis(500), Duration.ofSeconds(30), 5, Duration.ofSeconds(60));
         }
     }
 
     /** The record a partition is stuck on, and when to try it again. */
-    private record Retry(long offset, int attempts, Instant firstFailureAt, Instant nextAttemptAt, boolean alerted) {
+    private record Retry(
+            long offset,
+            int attempts,
+            Instant firstFailureAt,
+            Instant nextAttemptAt,
+            boolean alerted) {
     }
 
     private final Settings settings;
@@ -64,8 +77,12 @@ public final class RetryingConsumer implements Runnable {
     private final Map<TopicPartition, Retry> retries = new HashMap<>();
     private volatile boolean running = true;
 
-    public RetryingConsumer(Settings settings, Consumer<String, String> consumer, Producer<String, String> deadLetters,
-                            RecordHandler handler, Clock clock) {
+    public RetryingConsumer(
+            final Settings settings,
+            final Consumer<String, String> consumer,
+            final Producer<String, String> deadLetters,
+            final RecordHandler handler,
+            final Clock clock) {
         this.settings = settings;
         this.consumer = consumer;
         this.deadLetters = deadLetters;
@@ -99,12 +116,12 @@ public final class RetryingConsumer implements Runnable {
     void subscribe() {
         consumer.subscribe(List.of(settings.topic()), new ConsumerRebalanceListener() {
             @Override
-            public void onPartitionsRevoked(Collection<TopicPartition> partitions) {
+            public void onPartitionsRevoked(final Collection<TopicPartition> partitions) {
                 partitions.forEach(retries::remove);
             }
 
             @Override
-            public void onPartitionsAssigned(Collection<TopicPartition> partitions) {
+            public void onPartitionsAssigned(final Collection<TopicPartition> partitions) {
                 // Offsets were committed record by record, so a new owner starts after the last applied record
             }
         });
@@ -112,8 +129,8 @@ public final class RetryingConsumer implements Runnable {
 
     void pollOnce() {
         resumeDuePartitions();
-        ConsumerRecords<String, String> records = consumer.poll(settings.pollTimeout());
-        Map<TopicPartition, OffsetAndMetadata> applied = new HashMap<>();
+        final ConsumerRecords<String, String> records = consumer.poll(settings.pollTimeout());
+        final Map<TopicPartition, OffsetAndMetadata> applied = new HashMap<>();
         for (TopicPartition partition : records.partitions()) {
             for (ConsumerRecord<String, String> record : records.records(partition)) {
                 if (!process(partition, record)) {
@@ -127,7 +144,9 @@ public final class RetryingConsumer implements Runnable {
         }
     }
 
-    private boolean process(TopicPartition partition, ConsumerRecord<String, String> record) {
+    private boolean process(
+            final TopicPartition partition,
+            final ConsumerRecord<String, String> record) {
         try (var ignored = MDC.putCloseable("requestId", header(record, "X-Request-Id"))) {
             try {
                 handler.handle(record);
@@ -137,7 +156,7 @@ public final class RetryingConsumer implements Runnable {
                 log.warn("Poison record {}-{}@{}: {}", record.topic(), record.partition(), record.offset(), e.getMessage());
                 return deadLetter(partition, record, e);
             } catch (Exception e) {
-                Retry retry = recordFailure(partition, record);
+                final Retry retry = recordFailure(partition, record);
                 if (!TransientErrors.isTransient(e) && retry.attempts() >= settings.maxAttemptsForUnknownErrors()) {
                     log.error("Giving up on {}-{}@{} after {} attempts", record.topic(), record.partition(),
                             record.offset(), retry.attempts(), e);
@@ -151,12 +170,14 @@ public final class RetryingConsumer implements Runnable {
         }
     }
 
-    private Retry recordFailure(TopicPartition partition, ConsumerRecord<String, String> record) {
-        Instant now = clock.instant();
-        Retry previous = retries.get(partition);
-        boolean sameRecord = previous != null && previous.offset() == record.offset();
-        int attempts = sameRecord ? previous.attempts() + 1 : 1;
-        Instant firstFailureAt = sameRecord ? previous.firstFailureAt() : now;
+    private Retry recordFailure(
+            final TopicPartition partition,
+            final ConsumerRecord<String, String> record) {
+        final Instant now = clock.instant();
+        final Retry previous = retries.get(partition);
+        final boolean sameRecord = previous != null && previous.offset() == record.offset();
+        final int attempts = sameRecord ? previous.attempts() + 1 : 1;
+        final Instant firstFailureAt = sameRecord ? previous.firstFailureAt() : now;
         boolean alerted = sameRecord && previous.alerted();
         if (!alerted && Duration.between(firstFailureAt, now).compareTo(settings.stuckAlertAfter()) >= 0) {
             // The alerting hook: a partition has made no progress for a minute
@@ -164,24 +185,26 @@ public final class RetryingConsumer implements Runnable {
                     record.partition(), record.offset(), firstFailureAt);
             alerted = true;
         }
-        Retry retry = new Retry(record.offset(), attempts, firstFailureAt, now.plus(backoff(attempts)), alerted);
+        final Retry retry = new Retry(record.offset(), attempts, firstFailureAt, now.plus(backoff(attempts)), alerted);
         retries.put(partition, retry);
         return retry;
     }
 
-    Duration backoff(int attempts) {
-        long millis = settings.initialBackoff().toMillis() << Math.min(attempts - 1, 20);
+    Duration backoff(final int attempts) {
+        final long millis = settings.initialBackoff().toMillis() << Math.min(attempts - 1, 20);
         return Duration.ofMillis(Math.min(millis, settings.maxBackoff().toMillis()));
     }
 
-    private void pauseUntilRetry(TopicPartition partition, ConsumerRecord<String, String> record) {
+    private void pauseUntilRetry(
+            final TopicPartition partition,
+            final ConsumerRecord<String, String> record) {
         consumer.seek(partition, record.offset());
         consumer.pause(Set.of(partition));
     }
 
     private void resumeDuePartitions() {
-        Instant now = clock.instant();
-        Set<TopicPartition> paused = consumer.paused();
+        final Instant now = clock.instant();
+        final Set<TopicPartition> paused = consumer.paused();
         retries.forEach((partition, retry) -> {
             if (paused.contains(partition) && !retry.nextAttemptAt().isAfter(now)) {
                 consumer.resume(Set.of(partition));
@@ -189,16 +212,19 @@ public final class RetryingConsumer implements Runnable {
         });
     }
 
-    private void clearRetry(TopicPartition partition) {
-        Retry cleared = retries.remove(partition);
+    private void clearRetry(final TopicPartition partition) {
+        final Retry cleared = retries.remove(partition);
         if (cleared != null && cleared.alerted()) {
             log.info("Consumer {} recovered on {}", settings.groupId(), partition);
         }
     }
 
     /** Returns true when the record is safely in the dead-letter topic; false means "retry it later". */
-    private boolean deadLetter(TopicPartition partition, ConsumerRecord<String, String> record, Exception error) {
-        ProducerRecord<String, String> dead = new ProducerRecord<>(settings.deadLetterTopic(), record.key(), record.value());
+    private boolean deadLetter(
+            final TopicPartition partition,
+            final ConsumerRecord<String, String> record,
+            final Exception error) {
+        final ProducerRecord<String, String> dead = new ProducerRecord<>(settings.deadLetterTopic(), record.key(), record.value());
         record.headers().forEach(h -> dead.headers().add(h));
         addHeader(dead, "dlt.error", error.getClass().getName() + ": " + error.getMessage());
         addHeader(dead, "dlt.original.topic", record.topic());
@@ -221,12 +247,17 @@ public final class RetryingConsumer implements Runnable {
         }
     }
 
-    private static void addHeader(ProducerRecord<String, String> record, String name, String value) {
+    private static void addHeader(
+            final ProducerRecord<String, String> record,
+            final String name,
+            final String value) {
         record.headers().add(name, String.valueOf(value).getBytes(StandardCharsets.UTF_8));
     }
 
-    static String header(ConsumerRecord<String, String> record, String name) {
-        Header header = record.headers().lastHeader(name);
+    static String header(
+            final ConsumerRecord<String, String> record,
+            final String name) {
+        final Header header = record.headers().lastHeader(name);
         return header == null ? null : new String(header.value(), StandardCharsets.UTF_8);
     }
 }

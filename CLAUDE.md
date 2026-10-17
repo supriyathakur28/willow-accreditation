@@ -21,6 +21,14 @@ the design itself is in `docs/architecture.html`.
 ## Java style
 
 - Records for data, `sealed` for closed hierarchies, pattern-matching `switch`, `var` only when the type is obvious.
+- Every sealed type lists its subtypes in an explicit `permits` clause.
+- Method and constructor parameters are `final`, and so is every local variable that is not reassigned (record components and lambda parameters excepted). Annotations come first: `@Nullable final String requestId`.
+- A method, constructor or record with two or more parameters puts each on its own line, indented 8 spaces from the declaration:
+  ```java
+  public static Decision decide(
+          final Accreditation state,
+          final AccreditationCommand command) {
+  ```
 - Primitives when a value cannot be null; `@Nullable` (Micronaut's) on everything that can be. `Optional` for return values only.
 - Constructor injection with package-private constructors; no field injection. No Lombok.
 - Logging: `private static final Logger log = LoggerFactory.getLogger(X.class)`. `info` for business events, `warn` for recovered problems, `error` for failures with the stack trace, `debug` for noise. Never log request bodies, documents or secrets; log IDs.

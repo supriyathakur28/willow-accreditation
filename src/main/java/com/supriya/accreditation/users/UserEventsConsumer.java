@@ -40,8 +40,11 @@ public class UserEventsConsumer implements ApplicationEventListener<StartupEvent
     private final KnownUserRepository knownUsers;
     private final TransactionOperations<Connection> transactions;
 
-    UserEventsConsumer(ConsumerRunner runner, JsonMapper json, KnownUserRepository knownUsers,
-                       @Named("write") TransactionOperations<Connection> transactions) {
+    UserEventsConsumer(
+            final ConsumerRunner runner,
+            final JsonMapper json,
+            final KnownUserRepository knownUsers,
+            @Named("write") final TransactionOperations<Connection> transactions) {
         this.runner = runner;
         this.json = json;
         this.knownUsers = knownUsers;
@@ -49,12 +52,12 @@ public class UserEventsConsumer implements ApplicationEventListener<StartupEvent
     }
 
     @Override
-    public void onApplicationEvent(StartupEvent event) {
+    public void onApplicationEvent(final StartupEvent event) {
         runner.start(RetryingConsumer.Settings.defaults(GROUP, Topics.USER_EVENTS), this::apply);
     }
 
-    void apply(ConsumerRecord<String, String> record) {
-        String userId = record.key();
+    void apply(final ConsumerRecord<String, String> record) {
+        final String userId = record.key();
         if (userId == null || !userId.matches(PathIds.USER_ID_PATTERN)) {
             throw new PoisonRecordException("User record without a valid user_id key");
         }
@@ -73,7 +76,7 @@ public class UserEventsConsumer implements ApplicationEventListener<StartupEvent
             throw new PoisonRecordException("Record key " + userId + " does not match its user_id " + message.userId());
         }
         // The registration time when the record carries it, otherwise when Kafka received the record
-        Instant registeredAt = message.registeredAt() != null ? message.registeredAt() : Instant.ofEpochMilli(record.timestamp());
+        final Instant registeredAt = message.registeredAt() != null ? message.registeredAt() : Instant.ofEpochMilli(record.timestamp());
         transactions.executeWrite(status -> {
             knownUsers.insertIfAbsent(userId, registeredAt);
             return null;

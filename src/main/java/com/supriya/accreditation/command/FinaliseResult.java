@@ -10,7 +10,9 @@ public sealed interface FinaliseResult permits FinaliseResult.Applied, FinaliseR
     record Applied(Accreditation accreditation) implements FinaliseResult {
     }
 
-    record Rejected(Decision.Reason reason, Accreditation current) implements FinaliseResult {
+    record Rejected(
+            Decision.Reason reason,
+            Accreditation current) implements FinaliseResult {
     }
 
     record NotFound() implements FinaliseResult {

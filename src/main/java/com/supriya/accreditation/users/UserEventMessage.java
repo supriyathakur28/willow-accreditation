@@ -10,5 +10,7 @@ import java.time.Instant;
  * (and any event type) are accepted, because the topic is compacted and the latest record per user may be of any kind.
  */
 @Serdeable
-record UserEventMessage(@Nullable String userId, @Nullable Instant registeredAt) {
+record UserEventMessage(
+        @Nullable String userId,
+        @Nullable Instant registeredAt) {
 }

@@ -16,12 +16,19 @@ public class ApiException extends RuntimeException {
     private final List<ApiError.InvalidField> invalidFields;
     private final String currentStatus;
 
-    public ApiException(HttpStatus status, String errorCode, String message) {
+    public ApiException(
+            final HttpStatus status,
+            final String errorCode,
+            final String message) {
         this(status, errorCode, message, null, null);
     }
 
-    public ApiException(HttpStatus status, String errorCode, String message,
-                        @Nullable List<ApiError.InvalidField> invalidFields, @Nullable String currentStatus) {
+    public ApiException(
+            final HttpStatus status,
+            final String errorCode,
+            final String message,
+            @Nullable final List<ApiError.InvalidField> invalidFields,
+            @Nullable final String currentStatus) {
         super(message, null, false, false);
         this.status = status;
         this.errorCode = errorCode;
@@ -29,7 +36,10 @@ public class ApiException extends RuntimeException {
         this.currentStatus = currentStatus;
     }
 
-    public static ApiException invalidField(String fieldName, String error, String message) {
+    public static ApiException invalidField(
+            final String fieldName,
+            final String error,
+            final String message) {
         return new ApiException(HttpStatus.BAD_REQUEST, ErrorCodes.VALIDATION_FAILED, "Request is invalid",
                 List.of(new ApiError.InvalidField(fieldName, error, message)), null);
     }
@@ -38,7 +48,7 @@ public class ApiException extends RuntimeException {
         return status;
     }
 
-    ApiError toBody(@Nullable String requestId) {
+    ApiError toBody(@Nullable final String requestId) {
         return new ApiError(errorCode, getMessage(), requestId, invalidFields, currentStatus);
     }
 }

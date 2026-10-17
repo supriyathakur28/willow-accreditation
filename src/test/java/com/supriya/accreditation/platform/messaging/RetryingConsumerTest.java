@@ -58,8 +58,8 @@ class RetryingConsumerTest extends IntegrationTest {
 
     @Test
     void retriesAnInfrastructureFailureInPlaceAndKeepsOrder() {
-        List<String> applied = new CopyOnWriteArrayList<>();
-        AtomicInteger failuresLeft = new AtomicInteger(3);
+        final List<String> applied = new CopyOnWriteArrayList<>();
+        final AtomicInteger failuresLeft = new AtomicInteger(3);
         send("a", "b", "c");
 
         start("in-place", record -> {
@@ -77,7 +77,7 @@ class RetryingConsumerTest extends IntegrationTest {
 
     @Test
     void sendsAPoisonRecordToTheGroupsDeadLetterTopicAndMovesOn() {
-        List<String> applied = new CopyOnWriteArrayList<>();
+        final List<String> applied = new CopyOnWriteArrayList<>();
         send("a", "poison", "c");
 
         start("poison", record -> {
@@ -89,7 +89,7 @@ class RetryingConsumerTest extends IntegrationTest {
 
         await().atMost(Duration.ofSeconds(20)).until(() -> applied.size() == 2);
         assertThat(applied).containsExactly("a", "c");
-        List<ConsumerRecord<String, String>> dead = await().atMost(Duration.ofSeconds(20))
+        final List<ConsumerRecord<String, String>> dead = await().atMost(Duration.ofSeconds(20))
                 .until(() -> deadLetters("poison"), d -> d.size() == 1);
         assertThat(dead.getFirst().value()).isEqualTo("poison");
         assertThat(header(dead.getFirst(), "dlt.error")).contains("PoisonRecordException: cannot parse");
@@ -99,8 +99,8 @@ class RetryingConsumerTest extends IntegrationTest {
 
     @Test
     void givesUpOnAnUnrecognisedErrorAfterFiveAttempts() {
-        Map<String, AtomicInteger> attempts = new ConcurrentHashMap<>();
-        List<String> applied = new CopyOnWriteArrayList<>();
+        final Map<String, AtomicInteger> attempts = new ConcurrentHashMap<>();
+        final List<String> applied = new CopyOnWriteArrayList<>();
         send("bug", "next");
 
         start("bounded", record -> {
@@ -118,30 +118,33 @@ class RetryingConsumerTest extends IntegrationTest {
 
     @Test
     void backsOffExponentiallyUpToTheCap() {
-        RetryingConsumer consumer = new RetryingConsumer(RetryingConsumer.Settings.defaults("g", "t"), null, null,
-                record -> { }, Clock.systemUTC());
+        final RetryingConsumer consumer = new RetryingConsumer(RetryingConsumer.Settings.defaults("g", "t"), null, null,
+                record -> {
+                }, Clock.systemUTC());
 
         assertThat(List.of(1, 2, 3, 4, 6, 7, 50)).extracting(consumer::backoff).containsExactly(
                 Duration.ofMillis(500), Duration.ofSeconds(1), Duration.ofSeconds(2), Duration.ofSeconds(4),
                 Duration.ofSeconds(16), Duration.ofSeconds(30), Duration.ofSeconds(30));
     }
 
-    private void start(String group, RecordHandler handler) {
-        var settings = new RetryingConsumer.Settings(group, topic, Topics.deadLetter(topic, group),
+    private void start(
+            final String group,
+            final RecordHandler handler) {
+        final var settings = new RetryingConsumer.Settings(group, topic, Topics.deadLetter(topic, group),
                 Duration.ofMillis(100), Duration.ofMillis(50), Duration.ofMillis(200), 5, Duration.ofSeconds(60));
-        RetryingConsumer consumer = new RetryingConsumer(settings, newConsumer(group), producer, handler, Clock.systemUTC());
+        final RetryingConsumer consumer = new RetryingConsumer(settings, newConsumer(group), producer, handler, Clock.systemUTC());
         consumers.add(consumer);
         threads.add(Thread.ofPlatform().start(consumer));
     }
 
-    private void send(String... values) {
+    private void send(final String... values) {
         for (String value : values) {
             producer.send(new ProducerRecord<>(topic, "key", value));
         }
         producer.flush();
     }
 
-    private KafkaConsumer<String, String> newConsumer(String group) {
+    private KafkaConsumer<String, String> newConsumer(final String group) {
         return new KafkaConsumer<>(Map.of(
                 ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA.getBootstrapServers(),
                 ConsumerConfig.GROUP_ID_CONFIG, group + "-" + topic,
@@ -151,8 +154,8 @@ class RetryingConsumerTest extends IntegrationTest {
                 ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class));
     }
 
-    private List<ConsumerRecord<String, String>> deadLetters(String group) {
-        List<ConsumerRecord<String, String>> result = new ArrayList<>();
+    private List<ConsumerRecord<String, String>> deadLetters(final String group) {
+        final List<ConsumerRecord<String, String>> result = new ArrayList<>();
         try (KafkaConsumer<String, String> reader = newConsumer("reader-" + UUID.randomUUID())) {
             reader.subscribe(List.of(Topics.deadLetter(topic, group)));
             for (int i = 0; i < 5; i++) {
@@ -162,15 +165,17 @@ class RetryingConsumerTest extends IntegrationTest {
         return result;
     }
 
-    private long committedOffset(String group) {
+    private long committedOffset(final String group) {
         try (KafkaConsumer<String, String> reader = newConsumer(group)) {
-            var partition = new org.apache.kafka.common.TopicPartition(topic, 0);
-            var committed = reader.committed(java.util.Set.of(partition)).get(partition);
+            final var partition = new org.apache.kafka.common.TopicPartition(topic, 0);
+            final var committed = reader.committed(java.util.Set.of(partition)).get(partition);
             return committed == null ? -1 : committed.offset();
         }
     }
 
-    private static String header(ConsumerRecord<String, String> record, String name) {
+    private static String header(
+            final ConsumerRecord<String, String> record,
+            final String name) {
         return new String(record.headers().lastHeader(name).value(), StandardCharsets.UTF_8);
     }
 }

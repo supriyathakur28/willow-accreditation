@@ -22,16 +22,21 @@ public class ConsumerRunner {
     private final List<RetryingConsumer> consumers = new ArrayList<>();
     private final List<Thread> threads = new ArrayList<>();
 
-    ConsumerRunner(KafkaClients clients, Producer<String, String> producer, Clock clock) {
+    ConsumerRunner(
+            final KafkaClients clients,
+            final Producer<String, String> producer,
+            final Clock clock) {
         this.clients = clients;
         this.producer = producer;
         this.clock = clock;
     }
 
-    public synchronized void start(RetryingConsumer.Settings settings, RecordHandler handler) {
-        RetryingConsumer consumer = new RetryingConsumer(settings, clients.newConsumer(settings.groupId()), producer,
+    public synchronized void start(
+            final RetryingConsumer.Settings settings,
+            final RecordHandler handler) {
+        final RetryingConsumer consumer = new RetryingConsumer(settings, clients.newConsumer(settings.groupId()), producer,
                 handler, clock);
-        Thread thread = Thread.ofPlatform().name("consumer-" + settings.groupId()).start(consumer);
+        final Thread thread = Thread.ofPlatform().name("consumer-" + settings.groupId()).start(consumer);
         consumers.add(consumer);
         threads.add(thread);
         log.info("Consumer {} started on {}", settings.groupId(), settings.topic());

@@ -49,8 +49,12 @@ public class OutboxRelay {
     private final Clock clock;
     private final AtomicLong oldestUnpublishedAgeSeconds = new AtomicLong();
 
-    OutboxRelay(OutboxRepository outbox, @Named("write") TransactionOperations<Connection> transactions,
-                Producer<String, String> producer, Clock clock, MeterRegistry meters) {
+    OutboxRelay(
+            final OutboxRepository outbox,
+            @Named("write") final TransactionOperations<Connection> transactions,
+            final Producer<String, String> producer,
+            final Clock clock,
+            final MeterRegistry meters) {
         this.outbox = outbox;
         this.transactions = transactions;
         this.producer = producer;
@@ -76,11 +80,11 @@ public class OutboxRelay {
 
     /** Returns how many rows were published; fewer than a full batch means stop for this run. */
     int publishBatch() {
-        List<OutboxEventRow> batch = transactions.executeRead(status -> outbox.findUnpublished(BATCH_SIZE));
+        final List<OutboxEventRow> batch = transactions.executeRead(status -> outbox.findUnpublished(BATCH_SIZE));
         if (batch.isEmpty()) {
             return 0;
         }
-        List<Future<RecordMetadata>> sends = new ArrayList<>(batch.size());
+        final List<Future<RecordMetadata>> sends = new ArrayList<>(batch.size());
         try {
             for (OutboxEventRow row : batch) {
                 sends.add(producer.send(toRecord(row)));
@@ -91,7 +95,7 @@ public class OutboxRelay {
         }
         producer.flush();
 
-        List<Long> acknowledged = new ArrayList<>();
+        final List<Long> acknowledged = new ArrayList<>();
         for (int i = 0; i < sends.size(); i++) {
             try {
                 sends.get(i).get(30, TimeUnit.SECONDS);
@@ -105,7 +109,7 @@ public class OutboxRelay {
             }
         }
         if (!acknowledged.isEmpty()) {
-            Instant now = clock.instant();
+            final Instant now = clock.instant();
             transactions.executeWrite(status -> outbox.markPublished(acknowledged, now));
         }
         return acknowledged.size() == batch.size() ? batch.size() : 0;
@@ -114,24 +118,24 @@ public class OutboxRelay {
     @Scheduled(fixedDelay = "${outbox.cleanup.interval:1h}", initialDelay = "1m")
     @ScheduledJobLock
     public void deleteOldPublished() {
-        Instant cutoff = clock.instant().minus(KEEP_PUBLISHED);
+        final Instant cutoff = clock.instant().minus(KEEP_PUBLISHED);
         int deleted;
         do {
-            List<Long> ids = transactions.executeRead(status -> outbox.findPublishedBefore(cutoff, CLEANUP_BATCH_SIZE));
+            final List<Long> ids = transactions.executeRead(status -> outbox.findPublishedBefore(cutoff, CLEANUP_BATCH_SIZE));
             deleted = ids.isEmpty() ? 0 : transactions.executeWrite(status -> outbox.deletePublishedBefore(ids, cutoff));
         } while (deleted == CLEANUP_BATCH_SIZE);
     }
 
     private void updateLag() {
-        Instant now = clock.instant();
-        long age = transactions.executeRead(status -> outbox.findOldestUnpublishedCreatedAt())
+        final Instant now = clock.instant();
+        final long age = transactions.executeRead(status -> outbox.findOldestUnpublishedCreatedAt())
                 .map(created -> Duration.between(created, now).toSeconds())
                 .orElse(0L);
         oldestUnpublishedAgeSeconds.set(Math.max(age, 0));
     }
 
-    private static ProducerRecord<String, String> toRecord(OutboxEventRow row) {
-        ProducerRecord<String, String> record =
+    private static ProducerRecord<String, String> toRecord(final OutboxEventRow row) {
+        final ProducerRecord<String, String> record =
                 new ProducerRecord<>(Topics.ACCREDITATION_EVENTS, row.aggregateId().toString(), row.payload());
         record.headers().add("event_type", row.eventType().getBytes(StandardCharsets.UTF_8));
         if (row.requestId() != null) {

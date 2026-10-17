@@ -13,9 +13,13 @@ import java.util.Map;
  */
 @Serdeable
 @JsonInclude(JsonInclude.Include.ALWAYS)
-public record UserAccreditationsResponse(String userId, Map<String, Entry> accreditationStatuses) {
+public record UserAccreditationsResponse(
+        String userId,
+        Map<String, Entry> accreditationStatuses) {
 
     @Serdeable
-    public record Entry(AccreditationType accreditationType, AccreditationStatus status) {
+    public record Entry(
+            AccreditationType accreditationType,
+            AccreditationStatus status) {
     }
 }

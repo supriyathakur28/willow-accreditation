@@ -28,15 +28,17 @@ public class ScheduledJobLockInterceptor implements MethodInterceptor<Object, Ob
 
     private final DataSource dataSource;
 
-    ScheduledJobLockInterceptor(@Named("write") DataSource dataSource, DataSourceResolver resolver) {
+    ScheduledJobLockInterceptor(
+            @Named("write") final DataSource dataSource,
+            final DataSourceResolver resolver) {
         // The raw pool, outside connection and transaction management: the lock connection must not join any
         // transaction. Micronaut Data's resolver bean unwraps its contextual wrapper; DataSourceResolver.DEFAULT does not.
         this.dataSource = resolver.resolve(dataSource);
     }
 
     @Override
-    public Object intercept(MethodInvocationContext<Object, Object> context) {
-        String lockName = lockName(context.getDeclaringType().getSimpleName(), context.getMethodName());
+    public Object intercept(final MethodInvocationContext<Object, Object> context) {
+        final String lockName = lockName(context.getDeclaringType().getSimpleName(), context.getMethodName());
         try (Connection connection = dataSource.getConnection()) {
             if (!tryLock(connection, lockName)) {
                 log.debug("{} is running on another instance; skipping this run", lockName);
@@ -53,12 +55,16 @@ public class ScheduledJobLockInterceptor implements MethodInterceptor<Object, Ob
         }
     }
 
-    static String lockName(String type, String method) {
-        String name = "job:" + type + "." + method;
+    static String lockName(
+            final String type,
+            final String method) {
+        final String name = "job:" + type + "." + method;
         return name.length() <= 64 ? name : name.substring(0, 64); // MySQL's limit for lock names
     }
 
-    private static boolean tryLock(Connection connection, String lockName) throws SQLException {
+    private static boolean tryLock(
+            final Connection connection,
+            final String lockName) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement("SELECT GET_LOCK(?, 0)")) {
             statement.setString(1, lockName);
             try (ResultSet rs = statement.executeQuery()) {
@@ -67,7 +73,9 @@ public class ScheduledJobLockInterceptor implements MethodInterceptor<Object, Ob
         }
     }
 
-    private static void release(Connection connection, String lockName) {
+    private static void release(
+            final Connection connection,
+            final String lockName) {
         try (PreparedStatement statement = connection.prepareStatement("SELECT RELEASE_LOCK(?)")) {
             statement.setString(1, lockName);
             statement.execute();

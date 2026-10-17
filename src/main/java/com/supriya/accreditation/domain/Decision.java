@@ -12,7 +12,9 @@ public sealed interface Decision permits Decision.Accepted, Decision.NoOp, Decis
     }
 
     /** The command is not allowed against the current state. */
-    record Rejected(Reason reason, Accreditation current) implements Decision {
+    record Rejected(
+            Reason reason,
+            Accreditation current) implements Decision {
     }
 
     enum Reason {

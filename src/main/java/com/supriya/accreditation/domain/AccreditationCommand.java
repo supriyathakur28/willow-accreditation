@@ -11,10 +11,15 @@ public sealed interface AccreditationCommand permits AccreditationCommand.Finali
      *
      * @param expectedVersion the version the admin reviewed ({@code If-Match}), if sent
      */
-    record Finalise(Outcome outcome, String actor, OptionalLong expectedVersion) implements AccreditationCommand {
+    record Finalise(
+            Outcome outcome,
+            String actor,
+            OptionalLong expectedVersion) implements AccreditationCommand {
     }
 
     /** The expiry job: expire only if the accreditation is still CONFIRMED and was last updated before the cutoff. */
-    record ExpireIfStale(Instant cutoff, String actor) implements AccreditationCommand {
+    record ExpireIfStale(
+            Instant cutoff,
+            String actor) implements AccreditationCommand {
     }
 }

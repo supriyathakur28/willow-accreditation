@@ -16,16 +16,20 @@ import java.util.UUID;
 public class UuidBinaryConverter implements AttributeConverter<UUID, byte[]> {
 
     @Override
-    public byte[] convertToPersistedValue(UUID uuid, ConversionContext context) {
+    public byte[] convertToPersistedValue(
+            final UUID uuid,
+            final ConversionContext context) {
         return toBytes(uuid);
     }
 
     @Override
-    public UUID convertToEntityValue(byte[] bytes, ConversionContext context) {
+    public UUID convertToEntityValue(
+            final byte[] bytes,
+            final ConversionContext context) {
         return fromBytes(bytes);
     }
 
-    public static byte[] toBytes(UUID uuid) {
+    public static byte[] toBytes(final UUID uuid) {
         if (uuid == null) {
             return null;
         }
@@ -35,11 +39,11 @@ public class UuidBinaryConverter implements AttributeConverter<UUID, byte[]> {
                 .array();
     }
 
-    public static UUID fromBytes(byte[] bytes) {
+    public static UUID fromBytes(final byte[] bytes) {
         if (bytes == null) {
             return null;
         }
-        ByteBuffer buffer = ByteBuffer.wrap(bytes);
+        final ByteBuffer buffer = ByteBuffer.wrap(bytes);
         return new UUID(buffer.getLong(), buffer.getLong());
     }
 }

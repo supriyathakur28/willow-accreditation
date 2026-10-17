@@ -19,14 +19,14 @@ public class ConcurrencyLimitInterceptor implements MethodInterceptor<Object, Ob
     private final Environment environment;
     private final Map<String, Semaphore> limits = new ConcurrentHashMap<>();
 
-    ConcurrencyLimitInterceptor(Environment environment) {
+    ConcurrencyLimitInterceptor(final Environment environment) {
         this.environment = environment;
     }
 
     @Override
-    public Object intercept(MethodInvocationContext<Object, Object> context) {
-        String group = context.stringValue(ConcurrencyLimit.class).orElseThrow();
-        Semaphore permits = limits.computeIfAbsent(group, name -> new Semaphore(
+    public Object intercept(final MethodInvocationContext<Object, Object> context) {
+        final String group = context.stringValue(ConcurrencyLimit.class).orElseThrow();
+        final Semaphore permits = limits.computeIfAbsent(group, name -> new Semaphore(
                 environment.getProperty("concurrency-limits." + name, Integer.class, DEFAULT_LIMIT)));
         if (!permits.tryAcquire()) {
             throw new ServiceUnavailableException("Too many concurrent requests for " + group, null);

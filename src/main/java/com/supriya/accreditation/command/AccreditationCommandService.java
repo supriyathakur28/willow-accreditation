@@ -44,9 +44,14 @@ public class AccreditationCommandService {
     private final UuidV7Generator ids;
     private final Clock clock;
 
-    AccreditationCommandService(WriteTransactions transactions, AccreditationRepository accreditations,
-                                DocumentRepository documents, KnownUserRepository knownUsers,
-                                OutboxWriter outbox, UuidV7Generator ids, Clock clock) {
+    AccreditationCommandService(
+            final WriteTransactions transactions,
+            final AccreditationRepository accreditations,
+            final DocumentRepository documents,
+            final KnownUserRepository knownUsers,
+            final OutboxWriter outbox,
+            final UuidV7Generator ids,
+            final Clock clock) {
         this.transactions = transactions;
         this.accreditations = accreditations;
         this.documents = documents;
@@ -56,16 +61,23 @@ public class AccreditationCommandService {
         this.clock = clock;
     }
 
-    public record Submission(String userId, AccreditationType type, String documentName, String mimeType,
-                             String base64Content, String actor, @Nullable String idempotencyKey,
-                             String requestSha256, @Nullable String requestId) {
+    public record Submission(
+            String userId,
+            AccreditationType type,
+            String documentName,
+            String mimeType,
+            String base64Content,
+            String actor,
+            @Nullable String idempotencyKey,
+            String requestSha256,
+            @Nullable String requestId) {
     }
 
-    public SubmitResult submit(Submission submission) {
-        DecodedDocument document = DecodedDocument.decode(
+    public SubmitResult submit(final Submission submission) {
+        final DecodedDocument document = DecodedDocument.decode(
                 submission.documentName(), submission.mimeType(), submission.base64Content());
-        Instant now = clock.instant();
-        AccreditationSubmitted event = AccreditationDecider.submit(ids.next(), submission.userId(), submission.type(),
+        final Instant now = clock.instant();
+        final AccreditationSubmitted event = AccreditationDecider.submit(ids.next(), submission.userId(), submission.type(),
                 document.sha256(), submission.actor(), now, ids.next());
         try {
             return transactions.inTransaction(() -> insert(submission, document, event));
@@ -79,7 +91,10 @@ public class AccreditationCommandService {
         }
     }
 
-    private SubmitResult insert(Submission submission, DecodedDocument document, AccreditationSubmitted event) {
+    private SubmitResult insert(
+            final Submission submission,
+            final DecodedDocument document,
+            final AccreditationSubmitted event) {
         // FOR SHARE holds the user row until commit, so the check cannot go stale before the insert
         if (!knownUsers.existsForShare(submission.userId())) {
             return new SubmitResult.UserNotFound();
@@ -95,11 +110,11 @@ public class AccreditationCommandService {
         return new SubmitResult.Created(event.accreditationId());
     }
 
-    private SubmitResult resolveDuplicate(Submission submission) {
+    private SubmitResult resolveDuplicate(final Submission submission) {
         if (submission.idempotencyKey() == null) {
             return new SubmitResult.PendingExists();
         }
-        Optional<AccreditationRow> original = transactions.inTransaction(() ->
+        final Optional<AccreditationRow> original = transactions.inTransaction(() ->
                 accreditations.findByCreatedByAndIdempotencyKey(submission.actor(), submission.idempotencyKey()));
         if (original.isEmpty()) {
             return new SubmitResult.PendingExists();
@@ -110,21 +125,25 @@ public class AccreditationCommandService {
         return new SubmitResult.Created(original.get().id());
     }
 
-    public FinaliseResult finalise(UUID accreditationId, Outcome outcome, OptionalLong expectedVersion,
-                                   String actor, @Nullable String requestId) {
+    public FinaliseResult finalise(
+            final UUID accreditationId,
+            final Outcome outcome,
+            final OptionalLong expectedVersion,
+            final String actor,
+            @Nullable final String requestId) {
         return transactions.inTransaction(() -> {
             // Lock, then read: the 404, the If-Match check and the decision all use this locked row
-            Optional<AccreditationRow> locked = accreditations.findByIdForUpdate(accreditationId);
+            final Optional<AccreditationRow> locked = accreditations.findByIdForUpdate(accreditationId);
             if (locked.isEmpty()) {
                 return new FinaliseResult.NotFound();
             }
-            AccreditationRow row = locked.get();
-            Accreditation current = row.toDomain();
-            Decision decision = AccreditationDecider.decide(
+            final AccreditationRow row = locked.get();
+            final Accreditation current = row.toDomain();
+            final Decision decision = AccreditationDecider.decide(
                     current, new Finalise(outcome, actor, expectedVersion), clock.instant(), ids.next());
             return switch (decision) {
                 case Decision.Accepted accepted -> {
-                    Accreditation next = AccreditationDecider.evolve(current, accepted.event());
+                    final Accreditation next = AccreditationDecider.evolve(current, accepted.event());
                     accreditations.update(row.withState(next));
                     outbox.append(accepted.event(), requestId);
                     log.info("Accreditation {} moved {} -> {} (version {})",
@@ -143,20 +162,22 @@ public class AccreditationCommandService {
      * Expires one accreditation if it is still eligible on the locked row. The job found it with a plain read, so an
      * admin may have changed it since; the re-check below means nothing is decided on the scanned values.
      */
-    public ExpiryOutcome expireIfStale(UUID accreditationId, Instant cutoff) {
+    public ExpiryOutcome expireIfStale(
+            final UUID accreditationId,
+            final Instant cutoff) {
         return transactions.inTransaction(() -> {
-            Optional<AccreditationRow> locked = accreditations.findByIdForUpdate(accreditationId);
+            final Optional<AccreditationRow> locked = accreditations.findByIdForUpdate(accreditationId);
             if (locked.isEmpty()) {
                 return ExpiryOutcome.SKIPPED;
             }
-            AccreditationRow row = locked.get();
-            Accreditation current = row.toDomain();
-            Decision decision = AccreditationDecider.decide(current,
+            final AccreditationRow row = locked.get();
+            final Accreditation current = row.toDomain();
+            final Decision decision = AccreditationDecider.decide(current,
                     new ExpireIfStale(cutoff, AccreditationDecider.EXPIRY_JOB_ACTOR), clock.instant(), ids.next());
             if (!(decision instanceof Decision.Accepted accepted)) {
                 return ExpiryOutcome.SKIPPED;
             }
-            Accreditation next = AccreditationDecider.evolve(current, accepted.event());
+            final Accreditation next = AccreditationDecider.evolve(current, accepted.event());
             accreditations.update(row.withState(next));
             outbox.append(accepted.event(), null);
             log.info("Accreditation {} expired (confirmed at {}, version {})", accreditationId, current.updatedAt(),
