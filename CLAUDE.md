@@ -69,7 +69,8 @@ the design itself is in `docs/architecture.html`.
 
 - Test against the real thing: MySQL, Kafka and Redis in Testcontainers (`support/IntegrationTest`). Mock only what you cannot run.
 - Pure code gets exhaustive, table-driven unit tests (`@CsvSource`, `@ParameterizedTest`).
-- Test what the database enforces (constraints, collation, locking) and what the HTTP contract promises (status, envelope, headers), not only the happy path.
+- Test what the HTTP contract promises (status, envelope, headers), not only the happy path, and test database rules (constraints, collation, locking) through a request or an event that shows them.
+- Repository tests (`PersistenceIntegrationTest`) are for hand-written SQL and for schema rules no request reaches. Before adding one, check that no API or event-flow test fails when the rule is broken; if one does, the repository test adds nothing.
 - Test failure modes deliberately: hold a row lock to see the 503, pause a container to see fail-open.
 - Every bug found gets a test that fails without the fix. After writing a rule's test, break the rule once to see the test fail.
 - Integration tests reset state in `@BeforeEach` and must not depend on order; a test that leaves a hung request or a row behind will break the next one.

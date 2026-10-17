@@ -46,10 +46,10 @@ class AdminApiIntegrationTest extends ApiIntegrationTest {
                     .containsEntry("status", "PENDING").containsEntry("version", 1L)
                     .containsEntry("created_by", "anonymous").containsEntry("same_time", 1L);
 
-            final Map<String, Object> document = rows("accreditation_write", "SELECT file_name, mime_type, size_bytes, sha256 "
-                    + "FROM accreditation_documents").getFirst();
+            final Map<String, Object> document = rows("accreditation_write", "SELECT file_name, mime_type, size_bytes, sha256, "
+                    + "SHA2(content, 256) = sha256 AS content_matches FROM accreditation_documents").getFirst();
             assertThat(document).containsEntry("file_name", "2018.pdf").containsEntry("mime_type", "application/pdf")
-                    .containsEntry("size_bytes", 31);
+                    .containsEntry("size_bytes", 31).containsEntry("content_matches", 1L);
 
             final Map<String, Object> outbox = rows("accreditation_write", "SELECT event_type, request_id, payload, "
                     + "published_at FROM outbox_events").getFirst();
@@ -83,6 +83,19 @@ class AdminApiIntegrationTest extends ApiIntegrationTest {
             send(put(first, "FAILED"));
 
             assertThat(send(HttpRequest.POST("/user/accreditation", BRIEF_POST)).status()).isEqualTo(201);
+        }
+
+        @Test
+        void treatsUserIdsAsCaseSensitive() {
+            final String upperCase = USER.toUpperCase();
+            final Reply unknown = send(HttpRequest.POST("/user/accreditation", BRIEF_POST.replace(USER, upperCase)));
+
+            registerUser(upperCase);
+            send(HttpRequest.POST("/user/accreditation", BRIEF_POST));
+            final Reply otherUser = send(HttpRequest.POST("/user/accreditation", BRIEF_POST.replace(USER, upperCase)));
+
+            assertThat(unknown.status()).as("only %s is registered", USER).isEqualTo(422);
+            assertThat(otherUser.status()).as("a PENDING for %s does not block %s", USER, upperCase).isEqualTo(201);
         }
 
         @Test
@@ -239,6 +252,11 @@ class AdminApiIntegrationTest extends ApiIntegrationTest {
             final Reply revoked = send(put(id, "FAILED"));
             assertThat(revoked.status()).isEqualTo(200);
             assertThat(revoked.header("ETag")).isEqualTo("\"3\"");
+            // The 30-day clock runs from the last update, so every change must move updated_at
+            assertThat(rows("accreditation_write", "SELECT status, version, created_by, updated_by, "
+                    + "updated_at > created_at AS moved FROM accreditations WHERE id = '" + id + "'").getFirst())
+                    .containsEntry("status", "FAILED").containsEntry("version", 3L).containsEntry("created_by", "anonymous")
+                    .containsEntry("updated_by", "anonymous").containsEntry("moved", 1L);
 
             final Reply refused = send(put(id, "CONFIRMED"));
             assertThat(refused.status()).isEqualTo(409);

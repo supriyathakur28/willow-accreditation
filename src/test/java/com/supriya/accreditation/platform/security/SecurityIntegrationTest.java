@@ -48,6 +48,19 @@ class SecurityIntegrationTest extends ApiIntegrationTest {
     }
 
     @Test
+    void idempotencyKeysAreScopedToTheAdmin() {
+        registerUser(OTHER_USER);
+        final Reply first = send(HttpRequest.POST("/user/accreditation", BRIEF_POST)
+                .header("Idempotency-Key", "k-1").bearerAuth(adminToken()));
+        final Reply otherAdmin = send(HttpRequest.POST("/user/accreditation", BRIEF_POST.replace(USER, OTHER_USER))
+                .header("Idempotency-Key", "k-1").bearerAuth(token("{\"role\": \"ADMIN\", \"subject\": \"admin-8\"}")));
+
+        assertThat(first.status()).isEqualTo(201);
+        assertThat(otherAdmin.status()).isEqualTo(201);
+        assertThat(idOf(otherAdmin)).isNotEqualTo(idOf(first));
+    }
+
+    @Test
     void usersCannotUseAdminEndpoints() {
         final String token = userToken(USER);
         final String id = idOf(send(HttpRequest.POST("/user/accreditation", BRIEF_POST).bearerAuth(adminToken())));

@@ -2,11 +2,8 @@ package com.supriya.accreditation.persistence;
 
 import com.supriya.accreditation.command.persistence.AccreditationRepository;
 import com.supriya.accreditation.command.persistence.AccreditationRow;
-import com.supriya.accreditation.command.persistence.DocumentRepository;
-import com.supriya.accreditation.command.persistence.DocumentRow;
 import com.supriya.accreditation.command.persistence.OutboxEventRow;
 import com.supriya.accreditation.command.persistence.OutboxRepository;
-import com.supriya.accreditation.domain.AccreditationStatus;
 import com.supriya.accreditation.platform.persistence.DuplicateKeys;
 import com.supriya.accreditation.platform.UuidV7Generator;
 import com.supriya.accreditation.query.persistence.AccreditationViewRepository;
@@ -41,7 +38,11 @@ import static com.supriya.accreditation.domain.AccreditationType.BY_INCOME;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** The schema and the repositories against a real MySQL 8.4: the rules the database enforces are tested here. */
+/**
+ * The hand-written SQL, and the schema rules no behaviour test reaches, against a real MySQL 8.4.
+ * Rules a request or an event can show (one PENDING per user, idempotency, locking) are tested through the API
+ * and the event flow instead.
+ */
 @MicronautTest(startApplication = false, transactional = false)
 class PersistenceIntegrationTest extends IntegrationTest {
 
@@ -51,7 +52,6 @@ class PersistenceIntegrationTest extends IntegrationTest {
     @Inject @Named("write") TransactionOperations<Connection> writeTx;
     @Inject @Named("read") TransactionOperations<Connection> readTx;
     @Inject AccreditationRepository accreditations;
-    @Inject DocumentRepository documents;
     @Inject OutboxRepository outbox;
     @Inject AccreditationViewRepository views;
     @Inject StatusHistoryRepository history;
@@ -65,111 +65,6 @@ class PersistenceIntegrationTest extends IntegrationTest {
                 "DELETE FROM outbox_events", "DELETE FROM known_users"));
         readTx.executeWrite(s -> execute(s.getConnection(),
                 "DELETE FROM accreditation_views", "DELETE FROM accreditation_status_history"));
-    }
-
-    @Nested
-    class WriteModel {
-
-        @Test
-        void savesAndLocksAnAccreditation() {
-            final AccreditationRow saved = inWriteDb(() -> accreditations.save(pending(USER, "key-1")));
-
-            final AccreditationRow locked = inWriteDb(() -> accreditations.findByIdForUpdate(saved.id()).orElseThrow());
-
-            assertThat(locked).isEqualTo(saved);
-            assertThat(locked.toDomain().status()).isEqualTo(PENDING);
-            assertThat(locked.createdAt()).isEqualTo(T0); // microseconds survive the round trip
-        }
-
-        @Test
-        void storesIdsAsTheirCanonicalText() {
-            final AccreditationRow saved = inWriteDb(() -> accreditations.save(pending(USER, null)));
-
-            final String stored = writeTx.executeRead(s -> queryString(s.getConnection(),
-                    "SELECT id FROM accreditations"));
-
-            assertThat(stored).isEqualTo(saved.id().toString()); // readable as-is, the same string the API returns
-        }
-
-        @Test
-        void updatesStateAndKeepsCreationColumns() {
-            final AccreditationRow saved = inWriteDb(() -> accreditations.save(pending(USER, "key-1")));
-            final Instant later = T0.plusSeconds(60);
-
-            inWriteDb(() -> accreditations.update(new AccreditationRow(saved.id(), USER, BY_INCOME, CONFIRMED,
-                    2, "admin", "key-1", saved.requestSha256(), T0, later, "reviewer")));
-
-            final AccreditationRow reloaded = inWriteDb(() -> accreditations.findById(saved.id()).orElseThrow());
-            assertThat(reloaded.status()).isEqualTo(CONFIRMED);
-            assertThat(reloaded.version()).isEqualTo(2);
-            assertThat(reloaded.updatedAt()).isEqualTo(later);
-            assertThat(reloaded.updatedBy()).isEqualTo("reviewer");
-            assertThat(reloaded.createdBy()).isEqualTo("admin");
-        }
-
-        @Test
-        void rejectsASecondPendingForTheSameUser() {
-            inWriteDb(() -> accreditations.save(pending(USER, null)));
-
-            assertThatThrownBy(() -> inWriteDb(() -> accreditations.save(pending(USER, null))))
-                    .satisfies(e -> assertThat(DuplicateKeys.violatedKey(e))
-                            .contains("uq_accreditations_one_pending_per_user"));
-        }
-
-        @Test
-        void allowsANewPendingOnceThePreviousOneIsDecided() {
-            final AccreditationRow first = inWriteDb(() -> accreditations.save(pending(USER, null)));
-            inWriteDb(() -> accreditations.update(withStatus(first, FAILED)));
-
-            inWriteDb(() -> accreditations.save(pending(USER, null)));
-
-            assertThat(countAccreditations()).isEqualTo(2);
-        }
-
-        @Test
-        void treatsUserIdsAsCaseSensitive() {
-            inWriteDb(() -> accreditations.save(pending(USER, null)));
-
-            inWriteDb(() -> accreditations.save(pending(USER.toUpperCase(), null)));
-
-            assertThat(countAccreditations()).isEqualTo(2);
-        }
-
-        @Test
-        void scopesIdempotencyKeysPerCaller() {
-            inWriteDb(() -> accreditations.save(pending(USER, "key-1")));
-
-            assertThatThrownBy(() -> inWriteDb(() -> accreditations.save(pending("otherUser", "key-1"))))
-                    .satisfies(e -> assertThat(DuplicateKeys.violatedKey(e)).contains("uq_accreditations_idempotency_key"));
-
-            final AccreditationRow otherCaller = new AccreditationRow(ids.next(), "otherUser", BY_INCOME, PENDING, 1,
-                    "another-admin", "key-1", "f".repeat(64), T0, T0, "another-admin");
-            inWriteDb(() -> accreditations.save(otherCaller));
-            assertThat(inWriteDb(() -> accreditations.findByCreatedByAndIdempotencyKey("another-admin", "key-1")))
-                    .map(AccreditationRow::id).contains(otherCaller.id());
-        }
-
-        @Test
-        void storesTheDocumentApartFromTheStatus() {
-            final AccreditationRow saved = inWriteDb(() -> accreditations.save(pending(USER, null)));
-            final byte[] pdf = "%PDF-1.7 test".getBytes();
-
-            inWriteDb(() -> documents.save(new DocumentRow(saved.id(), "income.pdf", "application/pdf",
-                    pdf.length, "a".repeat(64), pdf, T0)));
-
-            final DocumentRow reloaded = inWriteDb(() -> documents.findById(saved.id()).orElseThrow());
-            assertThat(reloaded.content()).isEqualTo(pdf);
-            assertThat(reloaded.fileName()).isEqualTo("income.pdf");
-        }
-
-        @Test
-        void rejectsAnUnknownStatusAtTheDatabase() {
-            assertThatThrownBy(() -> writeTx.executeWrite(s -> execute(s.getConnection(), """
-                    INSERT INTO accreditations (id, user_id, accreditation_type, status, version, created_by,
-                        created_at, updated_at, updated_by)
-                    VALUES (UUID(), 'u1', 'BY_INCOME', 'APPROVED', 1, 'a', NOW(6), NOW(6), 'a')""")))
-                    .hasMessageContaining("chk_accreditations_status");
-        }
     }
 
     @Nested
@@ -278,11 +173,6 @@ class PersistenceIntegrationTest extends IntegrationTest {
         }
 
         @Test
-        void reportsAMissingViewSoTheConsumerCanInsertIt() {
-            assertThat(inReadDb(() -> views.applyIfNewer(ids.next(), CONFIRMED, 2, T0))).isZero();
-        }
-
-        @Test
         void listsOnlyTheRequestedUsersAccreditations() {
             final UUID first = ids.next();
             final UUID second = ids.next();
@@ -295,24 +185,6 @@ class PersistenceIntegrationTest extends IntegrationTest {
             assertThat(inReadDb(() -> views.findByUserIdOrderByAccreditationId(USER)))
                     .extracting(AccreditationViewRow::accreditationId).containsExactly(first, second);
             assertThat(inReadDb(() -> views.findByUserIdOrderByAccreditationId(USER.toLowerCase()))).isEmpty();
-        }
-
-        @Test
-        void keepsOneHistoryEntryPerEvent() {
-            final UUID accreditationId = ids.next();
-            final StatusHistoryRow submitted = new StatusHistoryRow(ids.next(), accreditationId, 1, "AccreditationSubmitted",
-                    null, PENDING, "admin", T0);
-            final StatusHistoryRow confirmed = new StatusHistoryRow(ids.next(), accreditationId, 2, "AccreditationConfirmed",
-                    PENDING, CONFIRMED, "reviewer", T0.plusSeconds(1));
-            inReadDb(() -> {
-                history.save(confirmed);
-                return history.save(submitted);
-            });
-
-            assertThatThrownBy(() -> inReadDb(() -> history.save(confirmed)))
-                    .satisfies(e -> assertThat(DuplicateKeys.violatedKey(e)).contains("PRIMARY"));
-            assertThat(inReadDb(() -> history.findByAccreditationIdOrderByVersion(accreditationId)))
-                    .containsExactly(submitted, confirmed);
         }
 
         @Test
@@ -344,14 +216,6 @@ class PersistenceIntegrationTest extends IntegrationTest {
             assertThat(count).isEqualTo("1");
             assertThat(registeredAt).startsWith("2026-01-01 10:00:00");
         }
-
-        @Test
-        void checksExistenceCaseSensitively() {
-            writeTx.executeWrite(s -> { knownUsers.insertIfAbsent(USER, T0); return null; });
-
-            assertThat(inWriteDb(() -> knownUsers.existsById(USER))).isTrue();
-            assertThat(inWriteDb(() -> knownUsers.existsById(USER.toLowerCase()))).isFalse();
-        }
     }
 
     private <T> T inWriteDb(final Supplier<T> work) {
@@ -376,19 +240,8 @@ class PersistenceIntegrationTest extends IntegrationTest {
                 T0, updatedAt, "reviewer");
     }
 
-    private static AccreditationRow withStatus(
-            final AccreditationRow row,
-            final AccreditationStatus status) {
-        return new AccreditationRow(row.id(), row.userId(), row.accreditationType(), status, row.version() + 1,
-                row.createdBy(), row.idempotencyKey(), row.requestSha256(), row.createdAt(), row.updatedAt(), "reviewer");
-    }
-
     private OutboxEventRow event() {
         return OutboxEventRow.pending(ids.next(), ids.next(), "AccreditationSubmitted", "{}", "req-1", T0);
-    }
-
-    private long countAccreditations() {
-        return Long.parseLong(writeTx.executeRead(s -> queryString(s.getConnection(), "SELECT COUNT(*) FROM accreditations")));
     }
 
     private static Void execute(
