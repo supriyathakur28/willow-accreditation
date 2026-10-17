@@ -162,11 +162,16 @@ class AdminApiIntegrationTest extends ApiIntegrationTest {
         }
 
         @Test
-        void keepsOnlyTheLastSegmentOfTheFileName() {
-            send(HttpRequest.POST("/user/accreditation", BRIEF_POST.replace("2018.pdf", "../../etc/2018.pdf")));
+        void rejectsAFileNameWithAPathOrControlCharacters() {
+            // As JSON: a Unix path, a Windows path, and a CR LF that could split a header or a log line
+            final List<String> names = List.of("../../etc/2018.pdf", "C:\\\\docs\\\\2018.pdf", "2018\\r\\n.pdf");
 
-            assertThat(rows("accreditation_write", "SELECT file_name FROM accreditation_documents").getFirst())
-                    .containsEntry("file_name", "2018.pdf");
+            assertThat(names).allSatisfy(name -> {
+                final Reply reply = send(HttpRequest.POST("/user/accreditation", BRIEF_POST.replace("2018.pdf", name)));
+                assertThat(reply.status()).as(name).isEqualTo(400);
+                assertThat(invalidFields(reply)).as(name).containsExactly("document.name:INVALID_VALUE");
+            });
+            assertThat(rows("accreditation_write", "SELECT * FROM accreditations")).isEmpty();
         }
     }
 

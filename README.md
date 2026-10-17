@@ -77,7 +77,8 @@ on PUT rejects a decision made on a stale view (412). Every response carries `X-
   reset.
 - The 30 days run from the last update.
 - POST for an unknown user returns 422. GET for a user with no accreditations returns an empty map.
-- Documents are PDF, PNG or JPEG, at most 5 MB.
+- Documents are PDF, PNG or JPEG, at most 5 MB. The file name is a bare name: one containing `/`, `\` or a
+  control character is rejected with 400, not rewritten.
 
 ## 9a. Architecture
 

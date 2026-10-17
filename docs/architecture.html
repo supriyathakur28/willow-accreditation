@@ -701,7 +701,7 @@ static Accreditation evolve(Accreditation state, AccreditationEvent e)</code></p
 <table>
   <tr><th>Table</th><th>Key columns and constraints</th></tr>
   <tr><td><code>accreditations</code></td><td>PK <code>id</code> · <code>user_id</code> · <code>accreditation_type</code>, <code>status</code> (CHECK) · <code>version</code> · <code>created_by</code>, <code>idempotency_key</code> NULL, <code>request_sha256</code>; UNIQUE (<code>created_by</code>, <code>idempotency_key</code>) · <code>created_at</code>, <code>updated_at</code> (equal on insert), <code>updated_by</code> · <code>user_id_if_pending</code> GENERATED STORED, UNIQUE</td></tr>
-  <tr><td><code>accreditation_documents</code></td><td>PK <code>accreditation_id</code> (FK) · <code>file_name</code> (sanitised), <code>mime_type</code>, <code>size_bytes</code>, <code>sha256</code> · <code>content</code> MEDIUMBLOB</td></tr>
+  <tr><td><code>accreditation_documents</code></td><td>PK <code>accreditation_id</code> (FK) · <code>file_name</code> (validated), <code>mime_type</code>, <code>size_bytes</code>, <code>sha256</code> · <code>content</code> MEDIUMBLOB</td></tr>
   <tr><td><code>outbox_events</code></td><td>PK <code>id</code> BIGINT AUTO_INCREMENT (publish order, never exposed) · UNIQUE <code>event_id</code> · <code>aggregate_id</code> · <code>event_type</code> · <code>payload</code> (the exact bytes published) · <code>request_id</code> · <code>published_at</code> NULL</td></tr>
   <tr><td><code>known_users</code></td><td>PK <code>user_id</code> · <code>registered_at</code></td></tr>
 </table>
@@ -823,7 +823,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?);
   <tr><td>Authorisation</td><td>Admin endpoints and history require an admin token. <code>GET /user/{userId}/accreditation</code> accepts an admin token, or a user token for that same <code>userId</code>, so a user can never read another user's accreditations.</td></tr>
   <tr><td>Audit actor</td><td><code>performed_by</code> and <code>created_by</code> come only from the token subject, never from the body or a header; with security off they are <code>anonymous</code>. The idempotency scope uses the same identity.</td></tr>
   <tr><td>Operational endpoints</td><td>Health, metrics and Swagger UI on a separate management port, not on 9999.</td></tr>
-  <tr><td>Documents</td><td>Size-capped before decoding; MIME type from an allow-list (PDF, PNG, JPEG); <code>file_name</code> sanitised (length, path separators, control characters). Documents are never served back by this service. Production: object storage with server-side envelope encryption (KMS) and malware scanning on upload; the database keeps only the key and checksum.</td></tr>
+  <tr><td>Documents</td><td>Size-capped before decoding; MIME type from an allow-list (PDF, PNG, JPEG); <code>file_name</code> validated (at most 255 characters, no path separators or control characters), and rejected with 400 rather than rewritten. Documents are never served back by this service. Production: object storage with server-side envelope encryption (KMS) and malware scanning on upload; the database keeps only the key and checksum.</td></tr>
   <tr><td>Logging</td><td>Request bodies and <code>document.content</code> are never logged; the HTTP log redacts them. Logs carry IDs and the request ID only.</td></tr>
   <tr><td>Retention and erasure</td><td>Accreditation records fall under regulatory record-keeping obligations that can conflict with GDPR erasure requests. Events carry only <code>user_id</code> and the document checksum, no personal details. Production would encrypt any personal fields per user and destroy the key on erasure (crypto-shredding), so the permanent topic stays append-only; the users topic gets a tombstone.</td></tr>
   <tr><td>Infrastructure</td><td>Compose uses development credentials. Production: secrets from a vault or Kubernetes secrets; TLS everywhere; Kafka and Redis require each service to authenticate, and grant it only the topics, consumer groups and keys it needs; least-privilege database users per schema (the query module has no grant on the write schema).</td></tr>
@@ -1022,7 +1022,7 @@ curl -s localhost:9999/user/g8NlYJnk7zK9BlB1J2Ebjs0AkhCTpE1V/accreditation
   <li>A user with a CONFIRMED or EXPIRED accreditation may submit another; only PENDING blocks.</li>
   <li><code>user_id</code> is an opaque, case-sensitive token issued by the Users service.</li>
   <li>POST for an unknown user returns 422; GET for a user with no accreditations returns an empty map.</li>
-  <li>Documents: PDF, PNG or JPEG by declared MIME type, at most 5 MB decoded. The brief's sample content is placeholder text (it decodes to a <code>tsconfig.json</code> fragment), so bytes are not sniffed.</li>
+  <li>Documents: PDF, PNG or JPEG by declared MIME type, at most 5 MB decoded, with a bare file name (no <code>/</code>, <code>\</code> or control characters). The brief's sample content is placeholder text (it decodes to a <code>tsconfig.json</code> fragment), so bytes are not sniffed.</li>
   <li>Requests with unknown JSON fields are rejected.</li>
   <li>The client <code>GET</code> is eventually consistent, normally within a second of an admin write.</li>
 </ul>

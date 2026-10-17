@@ -24,7 +24,9 @@ public record SubmitAccreditationRequest(
     @Serdeable
     @JsonIgnoreProperties(ignoreUnknown = false)
     public record Document(
-            @NotBlank @Size(max = 255, message = "must be at most 255 characters") String name,
+            // A bare file name: no path, and nothing that could break a header or a log line if it is shown later
+            @NotBlank @Size(max = 255, message = "must be at most 255 characters")
+            @Pattern(regexp = "[^/\\\\\\p{Cntrl}]*", message = "must not contain '/', '\\' or control characters") String name,
             @NotNull @Pattern(regexp = "application/pdf|image/png|image/jpeg",
                     message = "must be one of application/pdf, image/png, image/jpeg") String mimeType,
             @NotBlank @Base64Content String content) {
