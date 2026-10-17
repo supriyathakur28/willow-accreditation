@@ -45,7 +45,7 @@ curl -s -X POST localhost:9999/auth/token -H 'Content-Type: application/json' -d
 ./mvnw verify       # all tests; needs Docker, starts its own MySQL, Kafka and Redis (Testcontainers)
 ```
 
-146 tests. The ones that matter most:
+142 tests. The ones that matter most:
 
 - **State machine:** every (state × command) pair through the pure decision function, as a table.
 - **HTTP contract:** the brief's exact payloads, every status code and error body.
