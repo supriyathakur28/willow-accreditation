@@ -10,12 +10,14 @@ import org.junit.jupiter.api.Test;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
 @MicronautTest(transactional = false)
 @Property(name = "expiry.enabled", value = "true")
@@ -32,12 +34,12 @@ class ExpiryJobIntegrationTest extends IntegrationTest {
 
     @Test
     void expiresOnlyConfirmedAccreditationsUntouchedForThirtyDays() {
-        UUID stale = insert("CONFIRMED", daysAgo(31));
-        UUID recent = insert("CONFIRMED", daysAgo(29));
-        UUID oldPending = insert("PENDING", daysAgo(40));
-        UUID oldFailed = insert("FAILED", daysAgo(40));
+        final UUID stale = insert("CONFIRMED", daysAgo(31));
+        final UUID recent = insert("CONFIRMED", daysAgo(29));
+        final UUID oldPending = insert("PENDING", daysAgo(40));
+        final UUID oldFailed = insert("FAILED", daysAgo(40));
 
-        ExpiryJob.Run run = job.expireStaleConfirmations();
+        final ExpiryJob.Run run = job.expireStaleConfirmations();
 
         assertThat(run).isEqualTo(new ExpiryJob.Run(1, 0, 0));
         assertThat(statusOf(stale)).containsEntry("status", "EXPIRED").containsEntry("version", 3L)
@@ -46,7 +48,7 @@ class ExpiryJobIntegrationTest extends IntegrationTest {
         assertThat(statusOf(oldPending)).containsEntry("status", "PENDING");
         assertThat(statusOf(oldFailed)).containsEntry("status", "FAILED");
 
-        Map<String, Object> event = rows("accreditation_write", "SELECT event_type, payload FROM outbox_events").getFirst();
+        final Map<String, Object> event = rows("accreditation_write", "SELECT event_type, payload FROM outbox_events").getFirst();
         assertThat(event.get("event_type")).isEqualTo("AccreditationExpired");
         assertThat((String) event.get("payload")).contains("\"performed_by\":\"system:expiry-job\"")
                 .contains("\"previous_status\":\"CONFIRMED\"");
@@ -58,7 +60,7 @@ class ExpiryJobIntegrationTest extends IntegrationTest {
             insert("CONFIRMED", daysAgo(31).minusSeconds(i % 7)); // shared timestamps exercise the id tie-break
         }
 
-        ExpiryJob.Run run = job.expireStaleConfirmations();
+        final ExpiryJob.Run run = job.expireStaleConfirmations();
 
         assertThat(run.expired()).isEqualTo(1_234);
         assertThat(rows("accreditation_write", "SELECT * FROM accreditations WHERE status = 'CONFIRMED'")).isEmpty();
@@ -68,9 +70,9 @@ class ExpiryJobIntegrationTest extends IntegrationTest {
     @Test
     void reChecksEligibilityOnTheLockedRow() {
         // The scan saw these as eligible, but an admin changed them before the job got the lock
-        UUID revoked = insert("FAILED", daysAgo(40));
-        UUID reconfirmed = insert("CONFIRMED", Instant.now());
-        Instant cutoff = Instant.now().minus(30, ChronoUnit.DAYS);
+        final UUID revoked = insert("FAILED", daysAgo(40));
+        final UUID reconfirmed = insert("CONFIRMED", Instant.now());
+        final Instant cutoff = Instant.now().minus(30, ChronoUnit.DAYS);
 
         assertThat(commands.expireIfStale(revoked, cutoff)).isEqualTo(ExpiryOutcome.SKIPPED);
         assertThat(commands.expireIfStale(reconfirmed, cutoff)).isEqualTo(ExpiryOutcome.SKIPPED);
@@ -80,8 +82,8 @@ class ExpiryJobIntegrationTest extends IntegrationTest {
 
     @Test
     void skipsTheRunWhileAnotherInstanceHoldsTheJobLock() throws Exception {
-        UUID stale = insert("CONFIRMED", daysAgo(31));
-        String url = "jdbc:mysql://" + MYSQL.getHost() + ":" + MYSQL.getMappedPort(3306) + "/accreditation_write";
+        final UUID stale = insert("CONFIRMED", daysAgo(31));
+        final String url = "jdbc:mysql://" + MYSQL.getHost() + ":" + MYSQL.getMappedPort(3306) + "/accreditation_write";
         try (Connection otherInstance = DriverManager.getConnection(url, "root", MYSQL.getPassword())) {
             otherInstance.createStatement().execute("SELECT GET_LOCK('job:ExpiryJob.scheduledRun', 0)");
 
@@ -89,17 +91,22 @@ class ExpiryJobIntegrationTest extends IntegrationTest {
             assertThat(statusOf(stale)).containsEntry("status", "CONFIRMED");
         } // closing the connection releases the lock, as a crashed pod would
 
+        // MySQL releases it once it has processed the disconnect, which can lag the client's close() slightly
+        await().atMost(Duration.ofSeconds(5)).until(() -> Long.valueOf(1).equals(rows("accreditation_write",
+                "SELECT IS_FREE_LOCK('job:ExpiryJob.scheduledRun') AS free").getFirst().get("free")));
         job.scheduledRun();
         assertThat(statusOf(stale)).containsEntry("status", "EXPIRED");
     }
 
-    private static Instant daysAgo(int days) {
+    private static Instant daysAgo(final int days) {
         return Instant.now().minus(days, ChronoUnit.DAYS);
     }
 
-    private static UUID insert(String status, Instant updatedAt) {
-        UUID id = UUID.randomUUID();
-        String at = updatedAt.toString().replace("T", " ").replace("Z", "");
+    private static UUID insert(
+            final String status,
+            final Instant updatedAt) {
+        final UUID id = UUID.randomUUID();
+        final String at = updatedAt.toString().replace("T", " ").replace("Z", "");
         sql("accreditation_write", """
                 INSERT INTO accreditations (id, user_id, accreditation_type, status, version, created_by,
                     created_at, updated_at, updated_by)
@@ -108,7 +115,7 @@ class ExpiryJobIntegrationTest extends IntegrationTest {
         return id;
     }
 
-    private static Map<String, Object> statusOf(UUID id) {
+    private static Map<String, Object> statusOf(final UUID id) {
         return rows("accreditation_write", "SELECT status, version, updated_by FROM accreditations WHERE id = UUID_TO_BIN('"
                 + id + "')").getFirst();
     }
