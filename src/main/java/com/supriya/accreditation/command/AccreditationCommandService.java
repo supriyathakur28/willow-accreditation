@@ -95,8 +95,7 @@ public class AccreditationCommandService {
             final Submission submission,
             final DecodedDocument document,
             final AccreditationSubmitted event) {
-        // FOR SHARE holds the user row until commit, so the check cannot go stale before the insert
-        if (!knownUsers.existsForShare(submission.userId())) {
+        if (!knownUsers.existsById(submission.userId())) {
             return new SubmitResult.UserNotFound();
         }
         accreditations.save(new AccreditationRow(event.accreditationId(), event.userId(), event.accreditationType(),

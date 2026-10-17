@@ -14,7 +14,6 @@ import com.supriya.accreditation.query.persistence.AccreditationViewRow;
 import com.supriya.accreditation.query.persistence.StatusHistoryRepository;
 import com.supriya.accreditation.query.persistence.StatusHistoryRow;
 import com.supriya.accreditation.support.IntegrationTest;
-import com.supriya.accreditation.users.persistence.KnownUserRow;
 import com.supriya.accreditation.users.persistence.KnownUserRepository;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import io.micronaut.transaction.TransactionOperations;
@@ -339,16 +338,19 @@ class PersistenceIntegrationTest extends IntegrationTest {
             writeTx.executeWrite(s -> { knownUsers.insertIfAbsent(USER, T0); return null; });
             writeTx.executeWrite(s -> { knownUsers.insertIfAbsent(USER, T0.plusSeconds(5)); return null; });
 
-            assertThat(inWriteDb(() -> knownUsers.findById(USER))).map(KnownUserRow::registeredAt).contains(T0);
-            assertThat(inWriteDb(() -> knownUsers.existsById(USER))).isTrue();
+            final String count = writeTx.executeRead(s -> queryString(s.getConnection(), "SELECT COUNT(*) FROM known_users"));
+            final String registeredAt = writeTx.executeRead(s -> queryString(s.getConnection(),
+                    "SELECT registered_at FROM known_users WHERE user_id = '" + USER + "'"));
+            assertThat(count).isEqualTo("1");
+            assertThat(registeredAt).startsWith("2026-01-01 10:00:00");
         }
 
         @Test
-        void checksExistenceUnderAShareLockAndCaseSensitively() {
+        void checksExistenceCaseSensitively() {
             writeTx.executeWrite(s -> { knownUsers.insertIfAbsent(USER, T0); return null; });
 
-            assertThat(inWriteDb(() -> knownUsers.existsForShare(USER))).isTrue();
-            assertThat(inWriteDb(() -> knownUsers.existsForShare(USER.toLowerCase()))).isFalse();
+            assertThat(inWriteDb(() -> knownUsers.existsById(USER))).isTrue();
+            assertThat(inWriteDb(() -> knownUsers.existsById(USER.toLowerCase()))).isFalse();
         }
     }
 

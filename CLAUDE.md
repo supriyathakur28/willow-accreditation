@@ -32,7 +32,7 @@ the design itself is in `docs/architecture.html`.
 - Primitives when a value cannot be null; `@Nullable` (Micronaut's) on everything that can be. `Optional` for return values only.
 - Constructor injection with package-private constructors; no field injection. No Lombok.
 - Logging: `private static final Logger log = LoggerFactory.getLogger(X.class)`. `info` for business events, `warn` for recovered problems, `error` for failures with the stack trace, `debug` for noise. Never log request bodies, documents or secrets; log IDs.
-- Names say what the method does (`existsForShare`, `deletePublishedBefore`). Comments explain *why*, only where the code cannot; no comments that restate the code.
+- Names say what the method does (`findByIdForUpdate`, `deletePublishedBefore`). Comments explain *why*, only where the code cannot; no comments that restate the code.
 - Time comes from an injected `Clock`, never `Instant.now()` in logic. IDs come from an injected generator.
 
 ## Persistence
@@ -43,7 +43,7 @@ the design itself is in `docs/architecture.html`.
 - Times are `DATETIME(6)` in UTC, set by the application. Enums are `VARCHAR` with a named `CHECK`, not MySQL `ENUM`.
 - Repositories are Micronaut Data JDBC interfaces bound to a datasource with `@Repository("<name>")`. Derived queries for the simple cases; explicit SQL in `@Query` where the SQL matters (locking, keyset paging, guarded updates). Every `@Query` is covered by an integration test.
 - Transactions are short and contain database work only: no HTTP, Kafka or Redis call inside one. Decode, hash and validate before the transaction starts.
-- Locking reads (`…ForUpdate`, `FOR SHARE`) only inside a write transaction.
+- Locking reads (`…ForUpdate`) only inside a write transaction.
 - Run write work through `WriteTransactions`: it retries the whole unit on deadlock and turns other transient SQL errors into 503. Business errors (duplicate key) pass through.
 - On a duplicate key, use `DuplicateKeys.violatedKey` to tell a duplicate from other errors, and to tell the keys apart where the reaction differs (`HistoryConsumer`). An insert can violate two unique keys and MySQL reports only one, so never branch on which key it named when both are possible (`AccreditationCommandService.submit`). Never `INSERT IGNORE`, which also hides other errors.
 - Page large scans with a keyset on an indexed `(column, id)` pair, not `OFFSET`.

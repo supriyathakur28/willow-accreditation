@@ -7,7 +7,6 @@ import io.micronaut.data.model.query.builder.sql.Dialect;
 import io.micronaut.data.repository.GenericRepository;
 
 import java.time.Instant;
-import java.util.Optional;
 
 /** The local copy of the users the Users service knows, in the write model, where POST checks it. */
 @Repository("write")
@@ -23,17 +22,4 @@ public interface KnownUserRepository extends GenericRepository<KnownUserRow, Str
             Instant registeredAt);
 
     boolean existsById(String userId);
-
-    Optional<KnownUserRow> findById(String userId);
-
-    /**
-     * {@code FOR SHARE} holds the user row until the submit commits, so the check cannot go stale mid-transaction.
-     * Must run inside a write transaction.
-     */
-    @Query("SELECT COUNT(*) FROM known_users WHERE user_id = :userId FOR SHARE")
-    long countByIdForShare(String userId);
-
-    default boolean existsForShare(String userId) {
-        return countByIdForShare(userId) > 0;
-    }
 }
