@@ -4,8 +4,9 @@ import java.sql.SQLIntegrityConstraintViolationException;
 import java.util.Optional;
 
 /**
- * Tells which unique key an insert hit. Callers react per key (for example idempotency key vs one-PENDING rule),
- * so catching "a duplicate" is not enough.
+ * Tells whether an insert hit a unique key, and which one. A duplicate is often an expected outcome (a redelivered
+ * event), so it must be told apart from other errors, and sometimes one key from another: the history consumer
+ * ignores a repeated event ID but treats a repeated version under a new event ID as poison.
  */
 public final class DuplicateKeys {
 
@@ -23,12 +24,6 @@ public final class DuplicateKeys {
             }
         }
         return Optional.empty();
-    }
-
-    public static boolean isViolationOf(
-            final Throwable error,
-            final String keyName) {
-        return violatedKey(error).filter(keyName::equals).isPresent();
     }
 
     // MySQL 8: "Duplicate entry 'x' for key 'accreditations.uq_accreditations_idempotency_key'"

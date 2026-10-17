@@ -45,7 +45,7 @@ the design itself is in `docs/architecture.html`.
 - Transactions are short and contain database work only: no HTTP, Kafka or Redis call inside one. Decode, hash and validate before the transaction starts.
 - Locking reads (`…ForUpdate`, `FOR SHARE`) only inside a write transaction.
 - Run write work through `WriteTransactions`: it retries the whole unit on deadlock and turns other transient SQL errors into 503. Business errors (duplicate key) pass through.
-- On a duplicate key, use `DuplicateKeys.violatedKey` to react to the specific constraint; a retry can violate two unique keys and MySQL reports only one. Never `INSERT IGNORE`, which also hides other errors.
+- On a duplicate key, use `DuplicateKeys.violatedKey` to tell a duplicate from other errors, and to tell the keys apart where the reaction differs (`HistoryConsumer`). An insert can violate two unique keys and MySQL reports only one, so never branch on which key it named when both are possible (`AccreditationCommandService.submit`). Never `INSERT IGNORE`, which also hides other errors.
 - Page large scans with a keyset on an indexed `(column, id)` pair, not `OFFSET`.
 
 ## HTTP API
