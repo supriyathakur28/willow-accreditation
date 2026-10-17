@@ -63,7 +63,7 @@ class ConcurrencyIntegrationTest extends ApiIntegrationTest {
             assertThat(((Number) event.get("version")).longValue()).isEqualTo(++version);
             current = to;
         }
-        assertThat(current.isTerminal()).isTrue(); // 20 mixed requests always end in FAILED or EXPIRED
+        assertThat(current).isIn(AccreditationStatus.FAILED, AccreditationStatus.EXPIRED); // 20 mixed requests always end terminal
         assertThat(rows("accreditation_write", "SELECT status, version FROM accreditations").getFirst())
                 .containsEntry("status", current.name()).containsEntry("version", version);
         // Every request for a different status after the terminal one was refused

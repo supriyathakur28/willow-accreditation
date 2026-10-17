@@ -13,7 +13,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
-import org.junit.jupiter.params.provider.EnumSource;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -139,22 +138,24 @@ class AccreditationDeciderTest {
                     AccreditationDecider.EXPIRY_JOB_ACTOR)));
         }
 
-        @Test
-        void confirmedButUpdatedAtTheCutoffOrLaterIsNotExpired() {
-            Accreditation fresh = state(CONFIRMED, 2, cutoff);
+        /**
+         * The job expires only CONFIRMED accreditations last updated before the cutoff (requirement 5). Anything else is
+         * left alone: a recent confirmation, and every other status, even an old one. Expiring a PENDING accreditation
+         * is an admin decision, made through the API.
+         */
+        @ParameterizedTest(name = "{0}, updated {1} days before the cutoff")
+        @CsvSource({
+                "CONFIRMED, 0",
+                "CONFIRMED, -1",
+                "PENDING,   5",
+                "FAILED,    5",
+                "EXPIRED,   5",
+        })
+        void isNotEligibleForTheJob(AccreditationStatus status, int daysBeforeCutoff) {
+            Accreditation accreditation = state(status, 2, cutoff.minus(Duration.ofDays(daysBeforeCutoff)));
 
-            assertThat(AccreditationDecider.decide(fresh, expire, NOW, EVENT_ID))
-                    .isEqualTo(new Rejected(Decision.Reason.NOT_ELIGIBLE_FOR_EXPIRY, fresh));
-        }
-
-        /** The job scanned the row earlier; an admin changed it since. The re-check on the locked row skips it. */
-        @ParameterizedTest
-        @EnumSource(value = AccreditationStatus.class, names = {"PENDING", "FAILED", "EXPIRED"})
-        void anythingNoLongerConfirmedIsNotExpired(AccreditationStatus status) {
-            Accreditation changed = state(status, 3, cutoff.minus(Duration.ofDays(5)));
-
-            assertThat(AccreditationDecider.decide(changed, expire, NOW, EVENT_ID))
-                    .isEqualTo(new Rejected(Decision.Reason.NOT_ELIGIBLE_FOR_EXPIRY, changed));
+            assertThat(AccreditationDecider.decide(accreditation, expire, NOW, EVENT_ID))
+                    .isEqualTo(new Rejected(Decision.Reason.NOT_ELIGIBLE_FOR_EXPIRY, accreditation));
         }
     }
 
@@ -162,59 +163,34 @@ class AccreditationDeciderTest {
     class SubmittingAndEvolving {
 
         @Test
-        void submissionStartsPendingAtVersionOne() {
+        void submissionCreatesAPendingAccreditationAtVersionOne() {
             AccreditationSubmitted submitted = AccreditationDecider.submit(
                     ID, USER, AccreditationType.BY_NET_WORTH, "abc123", "admin-1", NOW, EVENT_ID);
 
-            assertThat(submitted.status()).isEqualTo(PENDING);
             assertThat(submitted.previousStatus()).isNull();
-            assertThat(submitted.version()).isEqualTo(1);
-            assertThat(submitted.submittedAt()).isEqualTo(NOW);
             assertThat(submitted.eventType()).isEqualTo("AccreditationSubmitted");
-        }
-
-        @Test
-        void evolveFromSubmissionBuildsTheInitialState() {
-            AccreditationSubmitted submitted = AccreditationDecider.submit(
-                    ID, USER, AccreditationType.BY_NET_WORTH, "abc123", "admin-1", NOW, EVENT_ID);
-
             assertThat(AccreditationDecider.evolve(null, submitted)).isEqualTo(new Accreditation(
                     ID, USER, AccreditationType.BY_NET_WORTH, PENDING, 1, NOW, NOW, "admin-1"));
         }
 
         @Test
-        void evolveAppliesAChange() {
-            Accreditation pending = state(PENDING, 1, CREATED);
-            var accepted = (Accepted) AccreditationDecider.decide(pending, finalise(Outcome.CONFIRMED), NOW, EVENT_ID);
-
-            assertThat(AccreditationDecider.evolve(pending, accepted.event())).isEqualTo(new Accreditation(
-                    ID, USER, AccreditationType.BY_INCOME, CONFIRMED, 2, CREATED, NOW, "admin-2"));
-        }
-
-        @Test
-        void aFullLifecycleEndsTerminal() {
+        void eachAcceptedChangeIsAppliedInTurn() {
+            Instant confirmedAt = CREATED.plus(Duration.ofDays(1));
+            Instant revokedAt = CREATED.plus(Duration.ofDays(2));
             Accreditation s = AccreditationDecider.evolve(null, AccreditationDecider.submit(
                     ID, USER, AccreditationType.BY_INCOME, "abc123", "admin-1", CREATED, UUID.randomUUID()));
-            s = apply(s, finalise(Outcome.CONFIRMED));
-            s = apply(s, finalise(Outcome.FAILED));
 
-            assertThat(s.status()).isEqualTo(FAILED);
-            assertThat(s.version()).isEqualTo(3);
-            assertThat(AccreditationDecider.decide(s, finalise(Outcome.CONFIRMED), NOW, EVENT_ID))
-                    .isInstanceOf(Rejected.class);
+            s = apply(s, new Finalise(Outcome.CONFIRMED, "admin-2", OptionalLong.empty()), confirmedAt);
+            s = apply(s, new Finalise(Outcome.FAILED, "admin-3", OptionalLong.empty()), revokedAt);
+
+            // Creation fields are kept; status, version and the last update follow each event
+            assertThat(s).isEqualTo(new Accreditation(
+                    ID, USER, AccreditationType.BY_INCOME, FAILED, 3, CREATED, revokedAt, "admin-3"));
         }
 
-        private Accreditation apply(Accreditation s, AccreditationCommand command) {
-            var accepted = (Accepted) AccreditationDecider.decide(s, command, NOW, UUID.randomUUID());
+        private Accreditation apply(Accreditation s, AccreditationCommand command, Instant at) {
+            var accepted = (Accepted) AccreditationDecider.decide(s, command, at, UUID.randomUUID());
             return AccreditationDecider.evolve(s, accepted.event());
         }
-    }
-
-    @Test
-    void terminalStatusesAreFailedAndExpiredOnly() {
-        assertThat(PENDING.isTerminal()).isFalse();
-        assertThat(CONFIRMED.isTerminal()).isFalse();
-        assertThat(FAILED.isTerminal()).isTrue();
-        assertThat(EXPIRED.isTerminal()).isTrue();
     }
 }

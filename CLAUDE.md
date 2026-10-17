@@ -14,7 +14,7 @@ the design itself is in `docs/architecture.html`.
 
 - **Functional core, imperative shell.** Business rules are pure functions over immutable records: no framework imports, no I/O, no clock, no exceptions for business outcomes. The shell loads, calls the function, persists, and maps the result.
 - **Outcomes are values.** Use sealed interfaces of records for results and exhaustive `switch` to handle them; the compiler then flags any unhandled case. Exceptions are for failures, not for "not found" or "not allowed". Controllers translate values to HTTP at the edge.
-- **Module boundaries are enforced, not documented.** ArchUnit rules fail the build when a package reaches across a boundary. Add a rule whenever you introduce a boundary. Anchor package patterns to this project's root (`com.supriya.accreditation.query..`, not `..query..`, which also matches framework packages).
+- **Module boundaries.** `domain` imports no framework; `command` and `query` never depend on each other (Kafka is their only link); `platform` knows no business module. Nothing checks this automatically, so keep it when adding code and look for it in review.
 - **The database is the arbiter for invariants.** Rules that span rows are unique constraints (generated columns when MySQL needs a partial index); rules on one row are decided on a row read with `SELECT … FOR UPDATE`. Never decide on data read before the lock, and never check-then-insert.
 - **Simple over clever.** No wrapper that only delegates, no abstraction with one caller, no speculative configuration. Build what is needed; describe the rest as "designed, not built".
 

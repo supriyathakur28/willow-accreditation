@@ -14,10 +14,6 @@ public enum AccreditationStatus {
     EXPIRED,
     FAILED;
 
-    public boolean isTerminal() {
-        return this == EXPIRED || this == FAILED;
-    }
-
     public boolean canMoveTo(AccreditationStatus target) {
         return switch (this) {
             case PENDING -> target == CONFIRMED || target == FAILED || target == EXPIRED;

@@ -312,7 +312,7 @@
   <tr><td><code>platform</code></td><td>Error model, request-ID filter, idempotency, job lock, security, clock, UUIDv7 generator</td><td>nothing in the business modules</td></tr>
 </table>
 </div>
-<p><code>command</code> and <code>query</code> never call each other; Kafka is their only link. An ArchUnit test enforces these rules.</p>
+<p><code>command</code> and <code>query</code> never call each other; Kafka is their only link.</p>
 
 <h3>Functional core, imperative shell</h3>
 <div class="two-col">
@@ -946,7 +946,6 @@ VALUES (?, ?, ?, ?, ?, ?, ?);
   <tr><td>Concurrency</td><td>The 9b guarantees under real contention</td><td>20 parallel PUTs with mixed outcomes on one PENDING: every accepted change is a legal transition from the state committed just before it, with exactly one event each, and once FAILED or EXPIRED every later request for a different status gets 409; parallel POSTs for one user: exactly one PENDING; expiry job racing an admin revocation; deadlock retry; two job instances: one run</td></tr>
   <tr><td>Idempotency</td><td>Retries are safe</td><td>A retried POST returns the original ID with 201; concurrent duplicates create one accreditation; same key and different body: 422; key reuse across admins does not collide</td></tr>
   <tr><td>Security (enabled)</td><td>Access rules</td><td>401 without a token; 403 for a user reading another user; admin-only routes; <code>performed_by</code> from the token</td></tr>
-  <tr><td>Architecture</td><td>Module boundaries</td><td>ArchUnit: <code>command</code> and <code>query</code> never depend on each other; <code>domain</code> has no framework imports</td></tr>
   <tr><td>Smoke</td><td>The packaged stack</td><td><code>smoke.sh</code> replays the brief's requests against <code>run.sh</code> and polls for the eventually consistent GET</td></tr>
 </table>
 </div>

@@ -104,7 +104,7 @@ on PUT rejects a decision made on a stale view (412). Every response carries `X-
 **Patterns.** CQRS; transactional outbox; event-carried state transfer; idempotent consumers; functional core and
 imperative shell (business rules are pure functions over immutable records, and outcomes are values, not
 exceptions); pessimistic locking; bulkheads (separate connection pools and request limits for admin and client
-traffic). ArchUnit tests enforce the module boundaries: `command` and `query` never depend on each other.
+traffic). `command` and `query` never depend on each other; Kafka is their only link.
 
 **Why two current-state tables.** Requirement 4 says the admin checks should use "the database containing the entity's
 current state". The event-built store is updated *after* the request returns, so checks against it could not be
