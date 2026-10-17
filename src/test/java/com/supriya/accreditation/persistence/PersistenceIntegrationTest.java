@@ -32,7 +32,6 @@ import java.util.function.Supplier;
 
 import static com.supriya.accreditation.domain.AccreditationStatus.CONFIRMED;
 import static com.supriya.accreditation.domain.AccreditationStatus.EXPIRED;
-import static com.supriya.accreditation.domain.AccreditationStatus.FAILED;
 import static com.supriya.accreditation.domain.AccreditationStatus.PENDING;
 import static com.supriya.accreditation.domain.AccreditationType.BY_INCOME;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -170,21 +169,6 @@ class PersistenceIntegrationTest extends IntegrationTest {
             assertThat(view.status()).isEqualTo(EXPIRED);
             assertThat(view.version()).isEqualTo(3);
             assertThat(view.submittedAt()).isEqualTo(T0);
-        }
-
-        @Test
-        void listsOnlyTheRequestedUsersAccreditations() {
-            final UUID first = ids.next();
-            final UUID second = ids.next();
-            inReadDb(() -> {
-                views.save(new AccreditationViewRow(second, USER, BY_INCOME, PENDING, 1, T0, T0));
-                views.save(new AccreditationViewRow(first, USER, BY_INCOME, FAILED, 2, T0, T0));
-                return views.save(new AccreditationViewRow(ids.next(), "someoneElse", BY_INCOME, PENDING, 1, T0, T0));
-            });
-
-            assertThat(inReadDb(() -> views.findByUserIdOrderByAccreditationId(USER)))
-                    .extracting(AccreditationViewRow::accreditationId).containsExactly(first, second);
-            assertThat(inReadDb(() -> views.findByUserIdOrderByAccreditationId(USER.toLowerCase()))).isEmpty();
         }
 
         @Test

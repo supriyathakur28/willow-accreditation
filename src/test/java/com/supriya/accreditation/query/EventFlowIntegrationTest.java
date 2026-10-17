@@ -114,6 +114,20 @@ class EventFlowIntegrationTest extends ApiIntegrationTest {
     }
 
     @Test
+    void eachUserSeesOnlyTheirOwnAccreditations() {
+        final String otherUser = USER.toUpperCase(); // user IDs are case-sensitive, so this is someone else
+        registerUser(otherUser);
+        final String own = idOf(send(HttpRequest.POST("/user/accreditation", BRIEF_POST)));
+        final String others = idOf(send(HttpRequest.POST("/user/accreditation", BRIEF_POST.replace(USER, otherUser))));
+
+        await().atMost(EVENTUALLY).until(() -> accreditationsOf(USER).containsKey(own)
+                && accreditationsOf(otherUser).containsKey(others));
+
+        assertThat(accreditationsOf(USER)).containsOnlyKeys(own);
+        assertThat(accreditationsOf(otherUser)).containsOnlyKeys(others);
+    }
+
+    @Test
     void historyOfAnUnknownAccreditationIsNotFound() {
         assertThat(send(HttpRequest.GET("/user/accreditation/" + UUID.randomUUID() + "/history")).status()).isEqualTo(404);
         assertThat(send(HttpRequest.GET("/user/accreditation/nope/history")).status()).isEqualTo(404);
@@ -228,14 +242,17 @@ class EventFlowIntegrationTest extends ApiIntegrationTest {
         await().atMost(Duration.ofSeconds(60)).until(() -> statusOf(id), "PENDING"::equals);
     }
 
-    private String statusOf(String id) {
-        final Reply reply = send(HttpRequest.GET("/user/" + USER + "/accreditation"));
-        @SuppressWarnings("unchecked") final
-                Map<String, Map<String, Object>> statuses = (Map<String, Map<String, Object>>) reply.body().get("accreditation_statuses");
-        if (statuses == null || !statuses.containsKey(id)) {
-            return null;
-        }
-        return (String) statuses.get(id).get("status");
+    private String statusOf(final String id) {
+        final Map<String, Object> accreditation = accreditationsOf(USER).get(id);
+        return accreditation == null ? null : (String) accreditation.get("status");
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Map<String, Object>> accreditationsOf(final String userId) {
+        final Reply reply = send(HttpRequest.GET("/user/" + userId + "/accreditation"));
+        final Map<String, Map<String, Object>> statuses =
+                (Map<String, Map<String, Object>>) reply.body().get("accreditation_statuses");
+        return statuses == null ? Map.of() : statuses;
     }
 
     @SuppressWarnings("unchecked")
