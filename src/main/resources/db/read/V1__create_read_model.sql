@@ -2,7 +2,7 @@
 
 CREATE TABLE accreditation_views (
     user_id            VARCHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
-    accreditation_id   BINARY(16)  NOT NULL,
+    accreditation_id   CHAR(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
     accreditation_type VARCHAR(20) NOT NULL,
     status             VARCHAR(20) NOT NULL,
     version            BIGINT      NOT NULL,                        -- events older than this are ignored
@@ -18,9 +18,9 @@ CREATE TABLE accreditation_views (
 
 -- Append-only audit trail, one row per event
 CREATE TABLE accreditation_status_history (
-    accreditation_id BINARY(16)   NOT NULL,
+    accreditation_id CHAR(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
     version          BIGINT       NOT NULL,
-    event_id         BINARY(16)   NOT NULL,
+    event_id         CHAR(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
     event_type       VARCHAR(64)  NOT NULL,
     from_status      VARCHAR(20)  NULL,                             -- NULL for the submission
     to_status        VARCHAR(20)  NOT NULL,

@@ -1,9 +1,11 @@
 -- Admin write model: every business check and every state change happens here.
+-- IDs are UUIDv7 in their canonical text form (lower-case, 36 characters), readable as they appear in the API.
+-- UUIDv7 text sorts in creation order, so inserts still append to the end of each index.
 -- user_id is an opaque, case-sensitive token, so it uses a binary collation everywhere:
 -- the default (case-insensitive) collation would treat 'abcD' and 'ABCd' as one user.
 
 CREATE TABLE accreditations (
-    id                  BINARY(16)   NOT NULL,                       -- UUIDv7, time-ordered: inserts append to the index
+    id                  CHAR(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,           -- UUIDv7, time-ordered: inserts append to the index
     user_id             VARCHAR(64)  CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
     accreditation_type  VARCHAR(20)  NOT NULL,
     status              VARCHAR(20)  NOT NULL,
@@ -33,7 +35,7 @@ CREATE TABLE accreditations (
 
 -- The evidence document, kept apart so status reads never touch the blob
 CREATE TABLE accreditation_documents (
-    accreditation_id BINARY(16)   NOT NULL,
+    accreditation_id CHAR(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
     file_name        VARCHAR(255) NOT NULL,
     mime_type        VARCHAR(100) NOT NULL,
     size_bytes       INT          NOT NULL,
@@ -49,8 +51,8 @@ CREATE TABLE accreditation_documents (
 -- Transactional outbox: written in the same transaction as the state change, published by the relay
 CREATE TABLE outbox_events (
     id           BIGINT       NOT NULL AUTO_INCREMENT,              -- publish order; never exposed
-    event_id     BINARY(16)   NOT NULL,
-    aggregate_id BINARY(16)   NOT NULL,                             -- accreditation_id, the Kafka key
+    event_id     CHAR(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+    aggregate_id CHAR(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,                             -- accreditation_id, the Kafka key
     event_type   VARCHAR(64)  NOT NULL,
     payload      MEDIUMTEXT   NOT NULL,                             -- the exact JSON published
     request_id   VARCHAR(64)  NULL,

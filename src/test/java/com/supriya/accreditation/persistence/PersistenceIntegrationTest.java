@@ -83,13 +83,13 @@ class PersistenceIntegrationTest extends IntegrationTest {
         }
 
         @Test
-        void storesIdsAsSixteenBigEndianBytes() {
+        void storesIdsAsTheirCanonicalText() {
             final AccreditationRow saved = inWriteDb(() -> accreditations.save(pending(USER, null)));
 
-            final String hex = writeTx.executeRead(s -> queryString(s.getConnection(),
-                    "SELECT HEX(id) FROM accreditations"));
+            final String stored = writeTx.executeRead(s -> queryString(s.getConnection(),
+                    "SELECT id FROM accreditations"));
 
-            assertThat(hex).isEqualTo(saved.id().toString().replace("-", "").toUpperCase());
+            assertThat(stored).isEqualTo(saved.id().toString()); // readable as-is, the same string the API returns
         }
 
         @Test
@@ -168,7 +168,7 @@ class PersistenceIntegrationTest extends IntegrationTest {
             assertThatThrownBy(() -> writeTx.executeWrite(s -> execute(s.getConnection(), """
                     INSERT INTO accreditations (id, user_id, accreditation_type, status, version, created_by,
                         created_at, updated_at, updated_by)
-                    VALUES (UNHEX(REPLACE(UUID(), '-', '')), 'u1', 'BY_INCOME', 'APPROVED', 1, 'a', NOW(6), NOW(6), 'a')""")))
+                    VALUES (UUID(), 'u1', 'BY_INCOME', 'APPROVED', 1, 'a', NOW(6), NOW(6), 'a')""")))
                     .hasMessageContaining("chk_accreditations_status");
         }
     }

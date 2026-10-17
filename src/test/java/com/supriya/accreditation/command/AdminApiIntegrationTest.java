@@ -41,7 +41,7 @@ class AdminApiIntegrationTest extends ApiIntegrationTest {
 
             final Map<String, Object> row = rows("accreditation_write", "SELECT user_id, accreditation_type, status, version, "
                     + "created_by, updated_by, created_at = updated_at AS same_time FROM accreditations "
-                    + "WHERE id = UUID_TO_BIN('" + id + "')").getFirst();
+                    + "WHERE id = '" + id + "'").getFirst();
             assertThat(row).containsEntry("user_id", USER).containsEntry("accreditation_type", "BY_INCOME")
                     .containsEntry("status", "PENDING").containsEntry("version", 1L)
                     .containsEntry("created_by", "anonymous").containsEntry("same_time", 1L);
@@ -347,7 +347,7 @@ class AdminApiIntegrationTest extends ApiIntegrationTest {
             final String url = "jdbc:mysql://" + MYSQL.getHost() + ":" + MYSQL.getMappedPort(3306) + "/accreditation_write";
             try (Connection holder = DriverManager.getConnection(url, "root", MYSQL.getPassword())) {
                 holder.setAutoCommit(false);
-                holder.createStatement().execute("SELECT * FROM accreditations WHERE id = UUID_TO_BIN('" + id + "') FOR UPDATE");
+                holder.createStatement().execute("SELECT * FROM accreditations WHERE id = '" + id + "' FOR UPDATE");
 
                 final long start = System.nanoTime();
                 final Reply reply = send(put(id, "CONFIRMED"));

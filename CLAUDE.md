@@ -39,7 +39,7 @@ the design itself is in `docs/architecture.html`.
 
 - Flyway owns the schema: one folder per logical database, append-only `V{n}__name.sql`, never edit an applied migration. Every table is `utf8mb4`; every constraint and index is named.
 - Opaque, case-sensitive identifiers (tokens from other systems) use `CHARACTER SET ascii COLLATE ascii_bin`; the default collation is case-insensitive.
-- UUIDs are `BINARY(16)`, big-endian. On entities: `@MappedProperty(converter = UuidBinaryConverter.class) @TypeDef(type = DataType.BYTE_ARRAY)`. A native-query parameter named like an entity property converts automatically; any other UUID parameter needs `@TypeDef(type = DataType.BYTE_ARRAY, converter = UuidBinaryConverter.class)`.
+- UUIDs are stored as their canonical text, `CHAR(36) CHARACTER SET ascii COLLATE ascii_bin`, so IDs read the same in the database, logs and API. Micronaut Data binds `UUID` fields and parameters as text with no annotation. The text is lower-case: look rows up with the ID exactly as `UUID.toString()` gives it.
 - Times are `DATETIME(6)` in UTC, set by the application. Enums are `VARCHAR` with a named `CHECK`, not MySQL `ENUM`.
 - Repositories are Micronaut Data JDBC interfaces bound to a datasource with `@Repository("<name>")`. Derived queries for the simple cases; explicit SQL in `@Query` where the SQL matters (locking, keyset paging, guarded updates). Every `@Query` is covered by an integration test.
 - Transactions are short and contain database work only: no HTTP, Kafka or Redis call inside one. Decode, hash and validate before the transaction starts.

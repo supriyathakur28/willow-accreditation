@@ -43,9 +43,9 @@ class UuidV7GeneratorTest {
             ids.add(generator.next());
         }
 
-        // Compared as unsigned big-endian bytes, which is how MySQL orders BINARY(16)
+        // Compared as their text, which is how MySQL orders the CHAR(36) ID columns (binary collation)
         for (int i = 1; i < ids.size(); i++) {
-            assertThat(Long.compareUnsigned(ids.get(i).getMostSignificantBits(), ids.get(i - 1).getMostSignificantBits()))
+            assertThat(ids.get(i).toString().compareTo(ids.get(i - 1).toString()))
                     .as("id %d sorts after id %d", i, i - 1)
                     .isPositive();
         }

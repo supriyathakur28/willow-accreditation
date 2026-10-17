@@ -1,11 +1,8 @@
 package com.supriya.accreditation.command.persistence;
 
-import com.supriya.accreditation.platform.UuidBinaryConverter;
 import io.micronaut.data.annotation.Query;
 import io.micronaut.data.annotation.Repository;
-import io.micronaut.data.annotation.TypeDef;
 import io.micronaut.data.jdbc.annotation.JdbcRepository;
-import io.micronaut.data.model.DataType;
 import io.micronaut.data.model.query.builder.sql.Dialect;
 import io.micronaut.data.repository.GenericRepository;
 
@@ -44,6 +41,6 @@ public interface AccreditationRepository extends GenericRepository<Accreditation
     List<AccreditationRow> findExpiryCandidates(
             Instant cutoff,
             Instant afterUpdatedAt,
-            @TypeDef(type = DataType.BYTE_ARRAY, converter = UuidBinaryConverter.class) UUID afterId,
+            UUID afterId,
             int limit);
 }

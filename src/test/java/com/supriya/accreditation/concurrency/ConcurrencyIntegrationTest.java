@@ -164,8 +164,8 @@ class ConcurrencyIntegrationTest extends ApiIntegrationTest {
     }
 
     private List<Map<String, Object>> events(final String accreditationId) {
-        return rows("accreditation_write", "SELECT payload FROM outbox_events WHERE aggregate_id = UUID_TO_BIN('"
-                + accreditationId + "') ORDER BY id").stream()
+        return rows("accreditation_write", "SELECT payload FROM outbox_events WHERE aggregate_id = '"
+                + accreditationId + "' ORDER BY id").stream()
                 .map(row -> parse((String) row.get("payload")))
                 .toList();
     }

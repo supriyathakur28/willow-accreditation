@@ -110,13 +110,13 @@ class ExpiryJobIntegrationTest extends IntegrationTest {
         sql("accreditation_write", """
                 INSERT INTO accreditations (id, user_id, accreditation_type, status, version, created_by,
                     created_at, updated_at, updated_by)
-                VALUES (UUID_TO_BIN('%s'), '%s', 'BY_INCOME', '%s', 2, 'admin', '%s', '%s', 'reviewer')"""
+                VALUES ('%s', '%s', 'BY_INCOME', '%s', 2, 'admin', '%s', '%s', 'reviewer')"""
                 .formatted(id, "u" + id.toString().substring(0, 8), status, at, at));
         return id;
     }
 
     private static Map<String, Object> statusOf(final UUID id) {
-        return rows("accreditation_write", "SELECT status, version, updated_by FROM accreditations WHERE id = UUID_TO_BIN('"
-                + id + "')").getFirst();
+        return rows("accreditation_write", "SELECT status, version, updated_by FROM accreditations WHERE id = '"
+                + id + "'").getFirst();
     }
 }
