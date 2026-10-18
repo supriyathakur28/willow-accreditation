@@ -21,8 +21,13 @@ Requirements: Docker with Compose v2. No JDK needed to run; the image is built i
 ./run.sh down       # stop (data kept)    ./run.sh clean   # stop and delete all data
 ```
 
-`requests.http` has every request, ready for the IntelliJ or VS Code HTTP client. Swagger UI is at
-http://localhost:9999/swagger-ui/index.html, and health and metrics are on the management port, 9998.
+`requests.http` has every request, ready for the IntelliJ or VS Code HTTP client. Health and metrics are on the
+management port, 9998.
+
+There is one OpenAPI contract per audience, so the client application never sees the admin API:
+[admin](http://localhost:9999/swagger/accreditation-admin-api-1.0-admin.yml) and
+[client](http://localhost:9999/swagger/accreditation-client-api-1.0-client.yml). Swagger UI at
+http://localhost:9999/swagger-ui/index.html switches between them. `POST /auth/token` is in neither.
 The stack is memory-capped at about 2.3 GB (it uses about 1 GB idle).
 Running on a Mac, or from IntelliJ: see [`docs/LOCAL_SETUP.md`](docs/LOCAL_SETUP.md).
 
@@ -45,7 +50,7 @@ curl -s -X POST localhost:9999/auth/token -H 'Content-Type: application/json' -d
 ./mvnw verify       # all tests; needs Docker, starts its own MySQL, Kafka and Redis (Testcontainers)
 ```
 
-132 tests. The ones that matter most:
+136 tests. The ones that matter most:
 
 - **State machine:** every (state × command) pair through the pure decision function, as a table.
 - **HTTP contract:** the brief's exact payloads, every status code and error body.

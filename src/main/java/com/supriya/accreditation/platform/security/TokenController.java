@@ -15,6 +15,7 @@ import io.micronaut.security.authentication.Authentication;
 import io.micronaut.security.rules.SecurityRule;
 import io.micronaut.security.token.jwt.generator.JwtTokenGenerator;
 import io.micronaut.serde.annotation.Serdeable;
+import io.swagger.v3.oas.annotations.Hidden;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
@@ -28,6 +29,7 @@ import java.util.Map;
  * It exists only when security is enabled.
  */
 @Controller("/auth/token")
+@Hidden // local only: never part of a published contract
 @Secured(SecurityRule.IS_ANONYMOUS)
 @Requires(property = "micronaut.security.enabled", value = "true")
 public class TokenController {

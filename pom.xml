@@ -125,6 +125,17 @@
             <artifactId>swagger-annotations</artifactId>
         </dependency>
         <dependency>
+            <!-- Used directly (MDC propagation onto the blocking executor), so declared rather than inherited -->
+            <groupId>io.micronaut</groupId>
+            <artifactId>micronaut-context-propagation</artifactId>
+        </dependency>
+        <dependency>
+            <!-- @OpenAPIGroup and @OpenAPIGroupInfo: read by the OpenAPI processor at compile time only -->
+            <groupId>io.micronaut.openapi</groupId>
+            <artifactId>micronaut-openapi-annotations</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
             <scope>runtime</scope>

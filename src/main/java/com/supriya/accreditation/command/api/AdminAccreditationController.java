@@ -26,9 +26,12 @@ import io.micronaut.http.annotation.PathVariable;
 import io.micronaut.http.annotation.Post;
 import io.micronaut.http.annotation.Put;
 import io.micronaut.json.JsonMapper;
+import io.micronaut.openapi.annotation.OpenAPIGroup;
 import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
 import io.micronaut.security.annotation.Secured;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Pattern;
 
@@ -43,6 +46,11 @@ import java.util.UUID;
 @ExecuteOn(TaskExecutors.BLOCKING)
 @Secured(Roles.ADMIN)
 @ConcurrencyLimit("admin-writes")
+@OpenAPIGroup("admin")
+@Tag(
+        name = "Accreditations",
+        description = "Submit and decide accreditations. Requires an ADMIN token.")
+@SecurityRequirement(name = "bearer")
 public class AdminAccreditationController {
 
     static final String IDEMPOTENCY_KEY = "Idempotency-Key";

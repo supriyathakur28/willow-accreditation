@@ -50,6 +50,7 @@ the design itself is in `docs/architecture.html`.
 
 ## HTTP API
 
+- One OpenAPI contract per audience. Every controller declares its group (`@OpenAPIGroup("admin")` or `"client"`) and its `@SecurityRequirement`; local-only endpoints are `@Hidden`. A controller without a group lands in every document, and `OpenApiContractTest` lists exactly what each one may contain.
 - JSON is snake_case everywhere (requests, responses, errors, events). Unknown request fields are rejected (`@JsonIgnoreProperties(ignoreUnknown = false)`).
 - Enum-like request fields are `String` validated with Bean Validation, so a single 400 lists every invalid field instead of failing on the first parse error. Convert to the enum after validation.
 - One error envelope for every error, ours and the framework's: `{error_code, message, request_id, invalid_fields?, current_status?}`. Framework messages are not echoed (they can name internal types).

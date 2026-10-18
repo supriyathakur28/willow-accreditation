@@ -5,6 +5,7 @@ import com.supriya.accreditation.query.persistence.StatusHistoryRow;
 import com.supriya.accreditation.platform.security.Roles;
 import com.supriya.accreditation.platform.web.ConcurrencyLimit;
 import com.supriya.accreditation.platform.web.PathIds;
+import io.micronaut.openapi.annotation.OpenAPIGroup;
 import io.micronaut.security.annotation.Secured;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
@@ -12,6 +13,8 @@ import io.micronaut.http.annotation.PathVariable;
 import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
 import io.micronaut.transaction.TransactionOperations;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.inject.Named;
 
 import java.sql.Connection;
@@ -23,6 +26,11 @@ import java.util.UUID;
 @ExecuteOn(TaskExecutors.BLOCKING)
 @Secured(Roles.ADMIN)
 @ConcurrencyLimit("client-reads")
+@OpenAPIGroup("admin")
+@Tag(
+        name = "Audit history",
+        description = "Every change to one accreditation. Requires an ADMIN token.")
+@SecurityRequirement(name = "bearer")
 public class AccreditationHistoryController {
 
     private final StatusHistoryRepository history;

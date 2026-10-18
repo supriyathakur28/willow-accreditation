@@ -7,6 +7,7 @@ import com.supriya.accreditation.platform.security.Roles;
 import com.supriya.accreditation.platform.web.ConcurrencyLimit;
 import com.supriya.accreditation.platform.web.PathIds;
 import io.micronaut.core.annotation.Nullable;
+import io.micronaut.openapi.annotation.OpenAPIGroup;
 import io.micronaut.security.annotation.Secured;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
@@ -14,6 +15,8 @@ import io.micronaut.http.annotation.PathVariable;
 import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
 import io.micronaut.transaction.TransactionOperations;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.inject.Named;
 
 import java.security.Principal;
@@ -30,6 +33,12 @@ import java.util.Map;
 @ExecuteOn(TaskExecutors.BLOCKING)
 @Secured({Roles.ADMIN, Roles.USER})
 @ConcurrencyLimit("client-reads")
+@OpenAPIGroup("client")
+@Tag(
+        name = "Accreditation status",
+        description = "A user's current accreditation statuses. "
+                + "Requires a USER token for that user_id, or an ADMIN token.")
+@SecurityRequirement(name = "bearer")
 public class ClientAccreditationController {
 
     private final AccreditationViewRepository views;
