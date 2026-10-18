@@ -68,6 +68,25 @@ class ExpiryJobIntegrationTest extends IntegrationTest {
     }
 
     @Test
+    void aRowThatStaysLockedCountsAsFailedAndTheRunGoesOn() throws Exception {
+        final UUID locked = insert("CONFIRMED", daysAgo(31));
+        final UUID free = insert("CONFIRMED", daysAgo(32));
+        final String url = "jdbc:mysql://" + MYSQL.getHost() + ":" + MYSQL.getMappedPort(3306) + "/accreditation_write";
+        try (Connection admin = DriverManager.getConnection(url, "root", MYSQL.getPassword())) {
+            // An admin's transaction holds the row past the job's 3 s lock wait
+            admin.setAutoCommit(false);
+            admin.createStatement().executeQuery("SELECT * FROM accreditations WHERE id = '" + locked + "' FOR UPDATE");
+
+            final ExpiryJob.Run run = job.expireStaleConfirmations();
+
+            assertThat(run).isEqualTo(new ExpiryJob.Run(1, 0, 1));
+            admin.rollback();
+        }
+        assertThat(statusOf(locked)).containsEntry("status", "CONFIRMED");
+        assertThat(statusOf(free)).containsEntry("status", "EXPIRED");
+    }
+
+    @Test
     void reChecksEligibilityOnTheLockedRow() {
         // The scan saw these as eligible, but an admin changed them before the job got the lock
         final UUID revoked = insert("FAILED", daysAgo(40));
