@@ -192,7 +192,53 @@ docker/                               MySQL and Kafka initialisation (databases,
 
 ## AI usage
 
-I used Claude Code throughout this project. I set the requirements, the
-interpretations and the design decisions, and used it to challenge the design (including an adversarial review of
-the architecture document) and to write most of the code, tests and documentation, step by step, reviewing each
-step before it was committed. The coding conventions it followed are recorded in [`CLAUDE.md`](CLAUDE.md).
+I used Claude Code throughout this project, in different roles for different parts of the work.
+
+**1. Architecture and system design: designed by me, challenged by AI.** I decided the architecture and the system
+design before any code was written:
+
+- one deployable, structured as a modular monolith, with command and query sides that communicate only through Kafka
+- a write model that every admin command runs against, in one transaction
+- an event-built read model for the client, in its own logical database with its own connection pool
+- a transactional outbox between the two, so state and events are always committed together
+- the consistency mechanisms: row locks for rules 4a and 4b, a unique index for 4c, and version guards in the
+  consumers
+- the Kafka design: topics, keys, consumer groups and dead-letter topics
+- the bulkheads between admin and client traffic, and the path for scaling the client side
+
+I used Claude Code as a sparring partner to challenge that design, including an adversarial review of the
+architecture document. I decided which of its suggestions to keep.
+
+**2. Business logic: specified by me.** I decided how the brief's requirements behave:
+
+- the state machine and its allowed transitions
+- how rules 4a–4c hold when administrators act concurrently
+- the 30-day expiry rule
+
+I also set the engineering standards every change had to meet: idempotent writes, correctness under concurrency,
+performance, and room to scale. Claude Code implemented the logic to that specification.
+
+**3. Tests: decided by me, written by AI.** I decided what had to be proven:
+
+- that concurrent decisions on one accreditation form a legal chain
+- that only one PENDING accreditation can exist per user
+- that retries are idempotent
+- that the service behaves correctly when MySQL, Kafka or Redis fails
+- that poison events go to a dead-letter topic
+- that each test fails when the rule it names is broken
+
+Claude Code wrote the test code to those requirements.
+
+**4. Supporting code, infrastructure and documentation: delegated.** I let Claude Code build these largely on its
+own:
+
+- the build scripts, Docker setup and CI pipeline
+- the MySQL, Kafka and Redis setup and the application configuration
+- the UUIDv7 generator
+- error and exception handling
+- the persistence layer and the request filters
+- the idempotency guard and document handling
+- most of the documentation
+
+**Review.** I reviewed every step before it was committed. The coding conventions it followed are recorded in
+[`CLAUDE.md`](CLAUDE.md).
