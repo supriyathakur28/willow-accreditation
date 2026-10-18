@@ -7,6 +7,7 @@ import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -15,6 +16,8 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
@@ -55,22 +58,11 @@ class ExpiryJobIntegrationTest extends IntegrationTest {
     }
 
     @Test
-    void walksEveryPage() {
-        for (int i = 0; i < 1_234; i++) { // more than two pages of 500
-            insert("CONFIRMED", daysAgo(31).minusSeconds(i % 7)); // shared timestamps exercise the id tie-break
-        }
-
-        final ExpiryJob.Run run = job.expireStaleConfirmations();
-
-        assertThat(run.expired()).isEqualTo(1_234);
-        assertThat(rows("accreditation_write", "SELECT * FROM accreditations WHERE status = 'CONFIRMED'")).isEmpty();
-        assertThat(rows("accreditation_write", "SELECT * FROM outbox_events")).hasSize(1_234);
-    }
-
-    @Test
-    void aRowThatStaysLockedCountsAsFailedAndTheRunGoesOn() throws Exception {
-        final UUID locked = insert("CONFIRMED", daysAgo(31));
-        final UUID free = insert("CONFIRMED", daysAgo(32));
+    @Timeout(30) // a cursor that restarted from the beginning would retry the locked row forever
+    void aFailedRowIsNotRetriedWithinTheRunAndLaterPagesAreStillReached() throws Exception {
+        // Oldest, so first on page 1; the PAGE_SIZE rows after it run over onto page 2
+        final UUID locked = insert("CONFIRMED", daysAgo(40));
+        insertStaleConfirmed(ExpiryJob.PAGE_SIZE);
         final String url = "jdbc:mysql://" + MYSQL.getHost() + ":" + MYSQL.getMappedPort(3306) + "/accreditation_write";
         try (Connection admin = DriverManager.getConnection(url, "root", MYSQL.getPassword())) {
             // An admin's transaction holds the row past the job's 3 s lock wait
@@ -79,11 +71,12 @@ class ExpiryJobIntegrationTest extends IntegrationTest {
 
             final ExpiryJob.Run run = job.expireStaleConfirmations();
 
-            assertThat(run).isEqualTo(new ExpiryJob.Run(1, 0, 1));
+            assertThat(run).isEqualTo(new ExpiryJob.Run(ExpiryJob.PAGE_SIZE, 0, 1));
             admin.rollback();
         }
-        assertThat(statusOf(locked)).containsEntry("status", "CONFIRMED");
-        assertThat(statusOf(free)).containsEntry("status", "EXPIRED");
+        assertThat(statusOf(locked)).containsEntry("status", "CONFIRMED"); // left for the next run
+        assertThat(rows("accreditation_write", "SELECT * FROM accreditations WHERE status = 'CONFIRMED'")).hasSize(1);
+        assertThat(rows("accreditation_write", "SELECT * FROM outbox_events")).hasSize(ExpiryJob.PAGE_SIZE);
     }
 
     @Test
@@ -125,13 +118,29 @@ class ExpiryJobIntegrationTest extends IntegrationTest {
             final String status,
             final Instant updatedAt) {
         final UUID id = UUID.randomUUID();
-        final String at = updatedAt.toString().replace("T", " ").replace("Z", "");
+        final String at = timestamp(updatedAt);
         sql("accreditation_write", """
                 INSERT INTO accreditations (id, user_id, accreditation_type, status, version, created_by,
                     created_at, updated_at, updated_by)
                 VALUES ('%s', '%s', 'BY_INCOME', '%s', 2, 'admin', '%s', '%s', 'reviewer')"""
                 .formatted(id, "u" + id.toString().substring(0, 8), status, at, at));
         return id;
+    }
+
+    /** {@code count} stale CONFIRMED rows in one statement; shared timestamps exercise the id tie-break. */
+    private static void insertStaleConfirmed(final int count) {
+        final String values = IntStream.range(0, count)
+                .mapToObj(i -> "('%s', 'u%d', 'BY_INCOME', 'CONFIRMED', 2, 'admin', '%s', '%3$s', 'reviewer')"
+                        .formatted(UUID.randomUUID(), i, timestamp(daysAgo(31).minusSeconds(i % 7))))
+                .collect(Collectors.joining(", "));
+        sql("accreditation_write", """
+                INSERT INTO accreditations (id, user_id, accreditation_type, status, version, created_by,
+                    created_at, updated_at, updated_by)
+                VALUES """ + values);
+    }
+
+    private static String timestamp(final Instant instant) {
+        return instant.toString().replace("T", " ").replace("Z", "");
     }
 
     private static Map<String, Object> statusOf(final UUID id) {
