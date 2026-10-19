@@ -28,7 +28,7 @@ import java.util.stream.Stream;
 
 /**
  * Expires CONFIRMED accreditations whose last update is older than 30 days.
- * The scan is a plain keyset walk that only collects IDs; each ID is then expired in its own short transaction
+ * The scan is a plain keyset walk that only finds candidates; each one is then expired in its own short transaction
  * through the same lock-and-decide path as an admin PUT. Expiries run on virtual threads, at most half the write
  * pool at once, so the job never starves admin writes of connections.
  */
