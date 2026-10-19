@@ -62,7 +62,8 @@ java -version                         # 21
    (freeing ports 9999 and 9998), starts MySQL, Kafka and Redis, and waits until the topics and sample users exist.
    Then run or debug `Application`. It reads `localhost` ports by default; add `SECURITY_ENABLED=true` to the run
    configuration's environment to turn security on.
-4. `requests.http` runs from the editor gutter.
+4. `requests.http` runs from the editor gutter. In Postman, import
+   `postman/accreditation-service.postman_collection.json` and run the folder that matches the security setting.
 5. **"No tests were found"** when running a test: reload the Maven project (Maven tool window → Reload All Maven
    Projects) so IntelliJ picks up the JUnit engine declared in `pom.xml`, then run the test again.
 6. Help → Change Memory Settings → 2048 MB is enough for this project.

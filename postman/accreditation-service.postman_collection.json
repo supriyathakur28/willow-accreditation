@@ -1,0 +1,1142 @@
+{
+  "info": {
+    "name": "Accreditation Service",
+    "description": "Every endpoint, with tests on each request. The four users are seeded by Docker Compose. Run one top-level folder per stack: \"Security off\" against `./run.sh`, \"Security on\" against `SECURITY_ENABLED=true ./run.sh`. From the command line: `npx newman run postman/accreditation-service.postman_collection.json --folder \"Security off\"`.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Security off",
+      "description": "Start the stack with `./run.sh` (security is off by default). Run the folders in order: Admin API, then Client API. Every accreditation created here is finalised at the end, so the folder can be re-run.",
+      "item": [
+        {
+          "name": "Admin API",
+          "description": "Back-office endpoints. With security off every caller is recorded as \"anonymous\".",
+          "item": [
+            {
+              "name": "1. Submit (the brief's request)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"201 Created\", () => pm.response.to.have.status(201));",
+                      "pm.collectionVariables.set(\"accreditationId\", pm.response.json().accreditation_id);"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/user/accreditation",
+                "description": "Creates a PENDING accreditation and saves its ID for the requests below.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"user_id\": \"{{briefUserId}}\",\n  \"accreditation_type\": \"BY_INCOME\",\n  \"document\": {\n    \"name\": \"2018.pdf\",\n    \"mime_type\": \"application/pdf\",\n    \"content\": \"ICAiQC8qIjogWyJzcmMvKiJdCiAgICB9CiAgfQp9Cg==\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "2. Second submit while one is PENDING",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"409 Conflict\", () => pm.response.to.have.status(409));",
+                      "pm.test(\"error_code PENDING_ACCREDITATION_EXISTS\", () => pm.expect(pm.response.json().error_code).to.eql(\"PENDING_ACCREDITATION_EXISTS\"));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/user/accreditation",
+                "description": "Rule 4c: one PENDING accreditation per user.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"user_id\": \"{{briefUserId}}\",\n  \"accreditation_type\": \"BY_INCOME\",\n  \"document\": {\n    \"name\": \"2018.pdf\",\n    \"mime_type\": \"application/pdf\",\n    \"content\": \"ICAiQC8qIjogWyJzcmMvKiJdCiAgICB9CiAgfQp9Cg==\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "3. Invalid body lists every invalid field",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"400 Bad Request\", () => pm.response.to.have.status(400));",
+                      "pm.test(\"error_code VALIDATION_FAILED\", () => pm.expect(pm.response.json().error_code).to.eql(\"VALIDATION_FAILED\"));",
+                      "pm.test(\"lists every invalid field\", () => pm.expect(pm.response.json().invalid_fields.length).to.be.at.least(4));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/user/accreditation",
+                "description": "One 400 with every invalid field, not just the first.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"user_id\": \"has spaces\",\n  \"accreditation_type\": \"BY_LUCK\",\n  \"document\": {\n    \"name\": \"\",\n    \"mime_type\": \"text/html\",\n    \"content\": \"not base64!\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "4. Unknown user",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"422 Unprocessable\", () => pm.response.to.have.status(422));",
+                      "pm.test(\"error_code USER_NOT_FOUND\", () => pm.expect(pm.response.json().error_code).to.eql(\"USER_NOT_FOUND\"));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/user/accreditation",
+                "description": "A user the Users service never registered.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"user_id\": \"nobody\",\n  \"accreditation_type\": \"BY_NET_WORTH\",\n  \"document\": {\n    \"name\": \"statement.pdf\",\n    \"mime_type\": \"application/pdf\",\n    \"content\": \"QUJD\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "5. Confirm",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                      "pm.test(\"ETag is version 2\", () => pm.response.to.have.header(\"ETag\", \"\\\"2\\\"\"));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/user/accreditation/{{accreditationId}}",
+                "description": "PENDING -> CONFIRMED. The ETag is the new version.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"outcome\": \"CONFIRMED\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "6. Confirm again (no-op)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                      "pm.test(\"still version 2\", () => pm.response.to.have.header(\"ETag\", \"\\\"2\\\"\"));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/user/accreditation/{{accreditationId}}",
+                "description": "Sending the current status again changes nothing, so retries are safe.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"outcome\": \"CONFIRMED\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "7. Revoke, only if still at version 2",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                      "pm.test(\"ETag is version 3\", () => pm.response.to.have.header(\"ETag\", \"\\\"3\\\"\"));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "If-Match",
+                    "value": "\"2\""
+                  }
+                ],
+                "url": "{{baseUrl}}/user/accreditation/{{accreditationId}}",
+                "description": "CONFIRMED -> FAILED. If-Match makes it fail with 412 if another admin changed it since.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"outcome\": \"FAILED\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "8. A FAILED accreditation cannot change",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"409 Conflict\", () => pm.response.to.have.status(409));",
+                      "pm.test(\"error_code TRANSITION_NOT_ALLOWED\", () => pm.expect(pm.response.json().error_code).to.eql(\"TRANSITION_NOT_ALLOWED\"));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/user/accreditation/{{accreditationId}}",
+                "description": "Rule 4a: FAILED is final.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"outcome\": \"CONFIRMED\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "9. Unknown accreditation",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"404 Not Found\", () => pm.response.to.have.status(404));",
+                      "pm.test(\"error_code ACCREDITATION_NOT_FOUND\", () => pm.expect(pm.response.json().error_code).to.eql(\"ACCREDITATION_NOT_FOUND\"));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/user/accreditation/00000000-0000-7000-8000-000000000000",
+                "description": "An ID that does not exist (a malformed one is also 404).",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"outcome\": \"CONFIRMED\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "10. Audit history",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "setTimeout(() => {}, 1500);"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                      "pm.test(\"three versions\", () => pm.expect(pm.response.json().history.map(h => h.version)).to.eql([1, 2, 3]));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/user/accreditation/{{accreditationId}}/history",
+                "description": "Every change, in version order. Built from events, so it can lag the write by a moment."
+              }
+            },
+            {
+              "name": "11. Submit with an Idempotency-Key",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.set(\"idempotencyKey\", \"key-\" + Date.now());"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"201 Created\", () => pm.response.to.have.status(201));",
+                      "pm.collectionVariables.set(\"idempotentId\", pm.response.json().accreditation_id);"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Idempotency-Key",
+                    "value": "{{idempotencyKey}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/user/accreditation",
+                "description": "For another seeded user. A new key per run.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"user_id\": \"{{idempotencyUserId}}\",\n  \"accreditation_type\": \"BY_INCOME\",\n  \"document\": {\n    \"name\": \"2018.pdf\",\n    \"mime_type\": \"application/pdf\",\n    \"content\": \"ICAiQC8qIjogWyJzcmMvKiJdCiAgICB9CiAgfQp9Cg==\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "12. Retry with the same key",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"201 Created\", () => pm.response.to.have.status(201));",
+                      "pm.test(\"same accreditation\", () => pm.expect(pm.response.json().accreditation_id).to.eql(pm.collectionVariables.get(\"idempotentId\")));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Idempotency-Key",
+                    "value": "{{idempotencyKey}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/user/accreditation",
+                "description": "Returns the original accreditation instead of creating a second one.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"user_id\": \"{{idempotencyUserId}}\",\n  \"accreditation_type\": \"BY_INCOME\",\n  \"document\": {\n    \"name\": \"2018.pdf\",\n    \"mime_type\": \"application/pdf\",\n    \"content\": \"ICAiQC8qIjogWyJzcmMvKiJdCiAgICB9CiAgfQp9Cg==\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "13. Same key, different body",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"422 Unprocessable\", () => pm.response.to.have.status(422));",
+                      "pm.test(\"error_code IDEMPOTENCY_KEY_REUSED\", () => pm.expect(pm.response.json().error_code).to.eql(\"IDEMPOTENCY_KEY_REUSED\"));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Idempotency-Key",
+                    "value": "{{idempotencyKey}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/user/accreditation",
+                "description": "A key reused for a different request is rejected.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"user_id\": \"{{idempotencyUserId}}\",\n  \"accreditation_type\": \"BY_NET_WORTH\",\n  \"document\": {\n    \"name\": \"2018.pdf\",\n    \"mime_type\": \"application/pdf\",\n    \"content\": \"ICAiQC8qIjogWyJzcmMvKiJdCiAgICB9CiAgfQp9Cg==\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "14. Clean up: fail the idempotency demo",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"200 OK\", () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/user/accreditation/{{idempotentId}}",
+                "description": "Leaves no PENDING behind, so the folder can be run again.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"outcome\": \"FAILED\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Client API",
+          "description": "The client application's endpoint. Eventually consistent with admin writes.",
+          "item": [
+            {
+              "name": "15. A user's accreditation statuses",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "setTimeout(() => {}, 1500);"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                      "pm.test(\"shows the revoked accreditation\", () => pm.expect(pm.response.json().accreditation_statuses[pm.collectionVariables.get(\"accreditationId\")].status).to.eql(\"FAILED\"));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/user/{{briefUserId}}/accreditation",
+                "description": "The brief's response shape: accreditation ID -> type and status."
+              }
+            },
+            {
+              "name": "16. A user with no accreditations",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                      "pm.test(\"empty map\", () => pm.expect(pm.response.json().accreditation_statuses).to.eql({}));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/user/{{otherUserId}}/accreditation",
+                "description": "An empty map, never 404, so the endpoint does not reveal which users exist."
+              }
+            },
+            {
+              "name": "17. Malformed user ID",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"400 Bad Request\", () => pm.response.to.have.status(400));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/user/not%20valid/accreditation",
+                "description": ""
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Security on",
+      "description": "Start the stack with `SECURITY_ENABLED=true ./run.sh`. Run the folders in order: Auth, Admin API, Client API. POST /auth/token is a local stand-in for the authentication service; it exists only when security is on.",
+      "item": [
+        {
+          "name": "Auth (local only)",
+          "description": "Issues the tokens the other folders use.",
+          "item": [
+            {
+              "name": "1. Admin token",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                      "pm.collectionVariables.set(\"adminToken\", pm.response.json().access_token);"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/auth/token",
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"role\": \"ADMIN\",\n  \"subject\": \"admin-7\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "2. User token",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                      "pm.collectionVariables.set(\"userToken\", pm.response.json().access_token);"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/auth/token",
+                "description": "May read only this user's accreditations.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"role\": \"USER\",\n  \"user_id\": \"{{securedUserId}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "3. Another user's token",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                      "pm.collectionVariables.set(\"otherUserToken\", pm.response.json().access_token);"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/auth/token",
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"role\": \"USER\",\n  \"user_id\": \"{{otherUserId}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin API",
+          "description": "Requires an ADMIN token.",
+          "item": [
+            {
+              "name": "4. Submit without a token",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"401 Unauthorized\", () => pm.response.to.have.status(401));",
+                      "pm.test(\"error_code UNAUTHORIZED\", () => pm.expect(pm.response.json().error_code).to.eql(\"UNAUTHORIZED\"));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/user/accreditation",
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"user_id\": \"{{securedUserId}}\",\n  \"accreditation_type\": \"BY_INCOME\",\n  \"document\": {\n    \"name\": \"2018.pdf\",\n    \"mime_type\": \"application/pdf\",\n    \"content\": \"ICAiQC8qIjogWyJzcmMvKiJdCiAgICB9CiAgfQp9Cg==\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "5. Submit with a user token",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"403 Forbidden\", () => pm.response.to.have.status(403));",
+                      "pm.test(\"error_code FORBIDDEN\", () => pm.expect(pm.response.json().error_code).to.eql(\"FORBIDDEN\"));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{userToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/user/accreditation",
+                "description": "Users cannot use admin endpoints.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"user_id\": \"{{securedUserId}}\",\n  \"accreditation_type\": \"BY_INCOME\",\n  \"document\": {\n    \"name\": \"2018.pdf\",\n    \"mime_type\": \"application/pdf\",\n    \"content\": \"ICAiQC8qIjogWyJzcmMvKiJdCiAgICB9CiAgfQp9Cg==\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "6. Submit as an admin",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"201 Created\", () => pm.response.to.have.status(201));",
+                      "pm.collectionVariables.set(\"securedAccreditationId\", pm.response.json().accreditation_id);"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{adminToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/user/accreditation",
+                "description": "Recorded under the token's subject, admin-7.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"user_id\": \"{{securedUserId}}\",\n  \"accreditation_type\": \"BY_INCOME\",\n  \"document\": {\n    \"name\": \"2018.pdf\",\n    \"mime_type\": \"application/pdf\",\n    \"content\": \"ICAiQC8qIjogWyJzcmMvKiJdCiAgICB9CiAgfQp9Cg==\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "7. Confirm as an admin",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"200 OK\", () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{adminToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/user/accreditation/{{securedAccreditationId}}",
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"outcome\": \"CONFIRMED\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "8. History as an admin",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "setTimeout(() => {}, 1500);"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                      "pm.test(\"performed by admin-7\", () => pm.expect(pm.response.json().history.map(h => h.performed_by)).to.eql([\"admin-7\", \"admin-7\"]));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{adminToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/user/accreditation/{{securedAccreditationId}}/history",
+                "description": "performed_by is the token's subject, never a value from the request."
+              }
+            },
+            {
+              "name": "9. History with a user token",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"403 Forbidden\", () => pm.response.to.have.status(403));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{userToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/user/accreditation/{{securedAccreditationId}}/history",
+                "description": "The audit history is admin-only."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Client API",
+          "description": "A USER token for that user, or an ADMIN token.",
+          "item": [
+            {
+              "name": "10. A user reads their own",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "setTimeout(() => {}, 1500);"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                      "pm.test(\"sees the accreditation\", () => pm.expect(pm.response.json().accreditation_statuses).to.have.property(pm.collectionVariables.get(\"securedAccreditationId\")));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{userToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/user/{{securedUserId}}/accreditation",
+                "description": ""
+              }
+            },
+            {
+              "name": "11. A user reads someone else's",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"403 Forbidden\", () => pm.response.to.have.status(403));",
+                      "pm.test(\"error_code FORBIDDEN\", () => pm.expect(pm.response.json().error_code).to.eql(\"FORBIDDEN\"));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{otherUserToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/user/{{securedUserId}}/accreditation",
+                "description": ""
+              }
+            },
+            {
+              "name": "12. An admin reads anyone's",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"200 OK\", () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{adminToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/user/{{securedUserId}}/accreditation",
+                "description": ""
+              }
+            },
+            {
+              "name": "13. No token",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"401 Unauthorized\", () => pm.response.to.have.status(401));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/user/{{securedUserId}}/accreditation",
+                "description": ""
+              }
+            },
+            {
+              "name": "14. Clean up: revoke as an admin",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"200 OK\", () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{adminToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/user/accreditation/{{securedAccreditationId}}",
+                "description": "Finalises the accreditation, so the folder can be run again.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"outcome\": \"FAILED\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:9999"
+    },
+    {
+      "key": "briefUserId",
+      "value": "g8NlYJnk7zK9BlB1J2Ebjs0AkhCTpE1V"
+    },
+    {
+      "key": "idempotencyUserId",
+      "value": "q67Of2GaqnwWgdGETGizPPBCJkZFZFTk"
+    },
+    {
+      "key": "securedUserId",
+      "value": "e6vcQWU7bsEvy6VW3Slb0qKYFhhllZOi"
+    },
+    {
+      "key": "otherUserId",
+      "value": "kq3rj7kY14mADZsVQ0qD7WjsvbS2h26C"
+    },
+    {
+      "key": "accreditationId",
+      "value": ""
+    },
+    {
+      "key": "idempotentId",
+      "value": ""
+    },
+    {
+      "key": "idempotencyKey",
+      "value": ""
+    },
+    {
+      "key": "securedAccreditationId",
+      "value": ""
+    },
+    {
+      "key": "adminToken",
+      "value": ""
+    },
+    {
+      "key": "userToken",
+      "value": ""
+    },
+    {
+      "key": "otherUserToken",
+      "value": ""
+    }
+  ]
+}

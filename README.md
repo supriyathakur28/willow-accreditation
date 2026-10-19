@@ -21,7 +21,16 @@ Requirements: Docker with Compose v2. No JDK needed to run; the image is built i
 ./run.sh down       # stop (data kept)    ./run.sh clean   # stop and delete all data
 ```
 
-`requests.http` has every request, ready for the IntelliJ or VS Code HTTP client. Health and metrics are on the
+[`postman/accreditation-service.postman_collection.json`](postman/accreditation-service.postman_collection.json)
+has every request, with tests on each: import it into Postman and run the "Security off" folder against
+`./run.sh`, or "Security on" against `SECURITY_ENABLED=true ./run.sh`. Each folder runs the admin API, then the
+client API, and leaves nothing PENDING, so it can be re-run. From the command line:
+
+```bash
+npx newman run postman/accreditation-service.postman_collection.json --folder "Security off"
+```
+
+`requests.http` has the same requests for the IntelliJ or VS Code HTTP client. Health and metrics are on the
 management port, 9998.
 
 There is one OpenAPI contract per audience, so the client application never sees the admin API:
